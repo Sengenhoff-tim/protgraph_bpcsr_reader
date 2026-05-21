@@ -1,0 +1,45 @@
+use std::{fs::File, path::PathBuf};
+
+use anyhow::{Result, bail};
+use csv::Reader;
+
+use crate::process_graphs::utilities::Interval;
+
+pub fn read_query_csv(
+    path: &PathBuf,
+    lower: i64,
+    upper: i64,
+    weight_factor: i64,
+) -> Result<Vec<Interval>> {
+    let file = File::open(path)?;
+    let mut reader = Reader::from_reader(file);
+
+    let intervals: Vec<Interval> = reader
+        .deserialize()
+        .map(|result| {
+            let mut interval: Interval = result?;
+
+            validate_interval(&interval)?;
+
+            interval.lower *= weight_factor;
+            interval.upper *= weight_factor;
+
+            interval.clamp(lower, upper);
+
+            Ok(interval)
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    Ok(intervals)
+}
+
+fn validate_interval(interval: &Interval) -> Result<()> {
+    if interval.lower > interval.upper {
+        bail!(
+            "Invalid interval: lower ({}) > upper ({})",
+            interval.lower,
+            interval.upper
+        );
+    }
+    Ok(())
+}
