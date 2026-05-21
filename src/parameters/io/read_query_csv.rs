@@ -21,10 +21,10 @@ pub fn read_query_csv(
 
             validate_interval(&interval)?;
 
+            interval.clamp(lower, upper);
+
             interval.lower *= weight_factor;
             interval.upper *= weight_factor;
-
-            interval.clamp(lower, upper);
 
             Ok(interval)
         })
