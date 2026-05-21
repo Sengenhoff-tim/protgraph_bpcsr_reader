@@ -1,0 +1,21 @@
+[package]
+name = "bpcsr_to_fasta"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+xxhash-rust = { version = "0.8", features = ["xxh64"] }
+clap = { version = "4.6.1", features = ["derive"] }
+byteorder = "1.5.0"
+bincode = "2"
+anyhow = "1.0.102"
+crossbeam-channel = "0.5.15"
+csv = "1.4.0"
+serde = { version = "1.0.228", features = ["derive"] }
+lru = "0.18.0"
+memmap2 = "0.9.10"
+crossbeam-deque = "0.8.6"
+rayon = "1.12.0"
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.31.3", features = ["resource"] }
+flate2 = "1.0"
