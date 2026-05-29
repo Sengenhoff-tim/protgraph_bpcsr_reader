@@ -49,7 +49,7 @@ pub fn process_graphs(config: Config) -> Result<Vec<PathBuf>> {
 
     let worker_args = WorkerArgs {
         max_vars: cli.max_vars,
-        limit: (cli.avail_memory as u64 * GB) as usize,
+        limit: (cli.avail_memory as u64 * GB / cli.avail_processors as u64) as usize,
         n_splits: cli.job_splits,
         max_depth: cli.job_split_depth,
     };
