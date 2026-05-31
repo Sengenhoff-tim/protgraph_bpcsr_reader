@@ -1,5 +1,3 @@
-type GraphWriterHandle = (Sender<BinEntry>, JoinHandle<Result<Vec<PathBuf>>>);
-
 use std::{
     collections::HashMap,
     fs::File,
@@ -9,7 +7,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, Error};
 use crossbeam_channel::{Receiver, Sender};
 use lru::LruCache;
 
@@ -22,15 +20,13 @@ pub fn spawn_writer_manager(
     out_dir: &Path,
     hash_bits: Option<u8>,
     max_handles: Option<u32>,
-    channel_for_write_size: usize,
-) -> Result<GraphWriterHandle> {
+    rx_entry: Receiver<BinEntry>
+) -> Result<JoinHandle<Result<Vec<PathBuf>, Error>>>  {
     let out_dir = out_dir.to_path_buf();
 
-    let (tx, rx) = crossbeam_channel::bounded::<BinEntry>(channel_for_write_size);
+    let handle = thread::spawn(move || writer_manager_thread(rx_entry, &out_dir, hash_bits, max_handles));
 
-    let handle = thread::spawn(move || writer_manager_thread(rx, &out_dir, hash_bits, max_handles));
-
-    Ok((tx, handle))
+    Ok(handle)
 }
 
 fn writer_manager_thread(

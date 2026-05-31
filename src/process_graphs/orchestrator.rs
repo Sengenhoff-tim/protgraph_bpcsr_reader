@@ -7,12 +7,12 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow};
-use crossbeam_channel::bounded;
+use crossbeam_channel::{bounded, unbounded};
 
-use crate::process_graphs::{
+use crate::{process_graphs::{
     graph::ProteinGraph,
-    threading::{spawn_graph_dispatcher, spawn_protein_graph_reader, spawn_writer_manager},
-};
+    threading::{spawn_graph_dispatcher, spawn_protein_graph_reader, spawn_writer_manager}, utilities::traversal_job::{TraversalJob, TraversalWorkerResult},
+}, shared::BinEntry};
 use crate::{parameters::Config, process_graphs::threading::graph_workers::WorkerArgs};
 
 const GB: u64 = 1024 * 1024 * 1024;
@@ -24,6 +24,7 @@ pub fn process_graphs(config: Config) -> Result<Vec<PathBuf>> {
     let cli = &config.cli;
 
     let ch_graph_in_size = cli.ch_proc_in_size.unwrap_or(2);
+    let ch_graph_query_size = cli.ch_proc_query_size.unwrap_or(cli.avail_processors * 2);
     let ch_bin_out_size = cli.ch_proc_out_size.unwrap_or(cli.avail_processors * 2);
 
     let out_dir = &cli.outdir_path;
@@ -34,18 +35,19 @@ pub fn process_graphs(config: Config) -> Result<Vec<PathBuf>> {
     let logs = File::create(out_dir.join(LOG_FILE_NAME))?;
     let log_writer = BufWriter::new(logs);
 
+    //channels
+    let (tx_graphs, rx_graphs) = bounded::<ProteinGraph>(ch_graph_in_size);
+    let (tx_jobs, rx_jobs) = bounded::<TraversalJob>(ch_graph_query_size);
+    let (tx_entry, rx_entry) = bounded::<BinEntry>(ch_bin_out_size);
+    let (tx_worker_results, rx_worker_results) = unbounded::<TraversalWorkerResult>();
+
     // setup graph reader
     let graph = File::open(&cli.graph_input_path)?;
     let reader_for_graph = BufReader::new(graph);
-    let (tx_graph, rx_graph) = bounded::<Result<ProteinGraph>>(ch_graph_in_size);
-    let reader_handle = thread::spawn(|| spawn_protein_graph_reader(reader_for_graph, tx_graph));
+    let reader_handle = spawn_protein_graph_reader(reader_for_graph, tx_graphs);
 
     // spawn tmp file writer
-    let (tx_entry, bin_writer_handle) =
-        spawn_writer_manager(out_dir, cli.hash_bits, cli.max_handles, ch_bin_out_size)?;
-
-    //process graphs
-    let intervals = Arc::new(config.intervals);
+    let bin_writer_handle = spawn_writer_manager(out_dir, cli.hash_bits, cli.max_handles, rx_entry)?;
 
     let worker_args = WorkerArgs {
         max_vars: cli.max_vars,
@@ -55,19 +57,24 @@ pub fn process_graphs(config: Config) -> Result<Vec<PathBuf>> {
     };
 
     let graph_handle = spawn_graph_dispatcher(
-        rx_graph,
-        tx_entry,
-        intervals,
-        cli.avail_processors,
+        rx_graphs,
+        rx_worker_results,
+        tx_jobs,
+        config.intervals,
         log_writer,
-        worker_args,
+        cli.job_splits as usize,
+        cli.job_split_depth as usize,
     )?;
 
     graph_handle
         .join()
-        .map_err(|e| anyhow!("thread panicked: {:?}", e))??;
+        .map_err(|e| anyhow!("graph thread panicked: {:?}", e))?
+        .context("graph thread failed")?;
 
-    reader_handle.join().unwrap();
+    reader_handle
+        .join()
+        .map_err(|e| anyhow!("reader thread panicked: {:?}", e))?
+        .context("reader thread failed")?;
 
     let result = bin_writer_handle.join().unwrap()?;
 

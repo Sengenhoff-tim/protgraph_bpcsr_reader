@@ -1,60 +1,117 @@
-type DispatcherHandle = JoinHandle<anyhow::Result<BufWriter<File>>>;
-
 use std::{
     fs::File,
     io::{BufWriter, Write},
-    sync::{Arc, atomic::AtomicBool},
+    sync::Arc,
     thread,
     thread::JoinHandle,
 };
 
-use anyhow::Result;
+use anyhow::{Error, Result};
 use crossbeam_channel::{Receiver, Sender};
 
-use crate::process_graphs::threading::graph_workers::{WorkerArgs, spawn_workers};
+use crate::process_graphs::{utilities::traversal_job::{TraversalJob, TraversalWorkerResult}};
 use crate::process_graphs::{graph::ProteinGraph, utilities::Interval};
-use crate::shared::BinEntry;
 
 pub fn spawn_graph_dispatcher(
-    protein_graphs: Receiver<Result<ProteinGraph>>,
-    tx_entry: Sender<BinEntry>,
-    intervals: Arc<Vec<Interval>>,
-    t_count: usize,
+    rx_graphs: Receiver<ProteinGraph>,
+    rx_worker_results: Receiver<TraversalWorkerResult>,
+    tx_jobs: Sender<TraversalJob>,
+    intervals: Vec<Interval>,
     log_writer: BufWriter<File>,
-    worker_args: WorkerArgs,
-) -> Result<DispatcherHandle> {
-    let handle = thread::spawn(move || -> anyhow::Result<BufWriter<File>> {
+    job_splits: usize,
+    job_split_depth: usize
+) -> Result<JoinHandle<Result<(), Error>>> {
+    let handle = thread::spawn(move || -> Result<()> {
         let mut log_writer = log_writer;
-        let args = Arc::new(worker_args);
+        let mut outstanding = 0usize;
 
-        for graph in protein_graphs {
-            let protein_graph = graph?;
+        // initial submission
+        for graph in rx_graphs {
+            let graph = Arc::new(graph);
 
-            // for logging
-            let accession = protein_graph.meta_data.accessions[0].clone();
-            let incomplete = Arc::new(AtomicBool::new(false));
+            for interval in intervals.iter().cloned() {
+                while let Ok(result) = rx_worker_results.try_recv() {
+                    handle_worker_result(
+                        result,
+                        &mut outstanding,
+                        &tx_jobs,
+                        &mut log_writer,
+                        job_splits,
+                        job_split_depth
+                    )?;
+                }
 
-            spawn_workers(
-                protein_graph,
-                intervals.clone(),
-                tx_entry.clone(),
-                t_count,
-                Arc::clone(&incomplete),
-                Arc::clone(&args),
-            )?;
+                tx_jobs.send(TraversalJob {
+                    graph: graph.clone(),
+                    interval,
+                    depth: 0,
+                })?;
 
-            if incomplete.load(std::sync::atomic::Ordering::Relaxed) {
-                writeln!(
-                    log_writer,
-                    "{},Incomplete traversal due to memory limit",
-                    accession
-                )?;
+                outstanding += 1;
             }
         }
 
-        log_writer.flush()?;
-        Ok(log_writer)
+        // drain until all recursive work completes
+        while outstanding > 0 {
+            let result = rx_worker_results.recv()?;
+
+            handle_worker_result(
+                result,
+                &mut outstanding,
+                &tx_jobs,
+                &mut log_writer,
+                job_splits,
+                job_split_depth
+            )?;
+        }
+        Ok(())
     });
 
     Ok(handle)
+}
+
+fn handle_worker_result(
+    result: TraversalWorkerResult,
+    outstanding: &mut usize,
+    tx_jobs: &Sender<TraversalJob>,
+    log_writer: &mut BufWriter<File>,
+    job_splits: usize,
+    job_split_depth: usize
+) -> anyhow::Result<()> {
+    match result {
+        TraversalWorkerResult::Complete => {
+            *outstanding -= 1;
+        }
+
+        TraversalWorkerResult::Reschedule(job) => {
+            *outstanding -= 1;
+
+            let new_depth = job.depth + 1;
+
+            if new_depth > job_split_depth {
+                writeln!(
+                    log_writer,
+                    "{},{},Incomplete traversal due to split depth limit",
+                    job.graph.meta_data.accessions[0],
+                    job.interval
+                )?;
+
+                return Ok(());
+            }
+
+            let splits = job.interval.split_to_n(job_splits);
+
+            for interval in &splits {
+                tx_jobs.send(TraversalJob {
+                    graph: job.graph.clone(),
+                    interval: interval.clone(),
+                    depth: new_depth,
+                })?;
+            }
+
+            *outstanding += splits.len();
+        }
+    }
+
+    Ok(())
 }

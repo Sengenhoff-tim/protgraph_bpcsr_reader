@@ -23,11 +23,9 @@ impl Interval {
         self.lower = self.lower.clamp(min, max);
         self.upper = self.upper.clamp(min, max);
     }
-}
 
-impl Interval {
     /// Splits one interval to n roughly equal intervals. Used for job rescheduling.
-    pub fn split_to_n(&self, n: u8) -> Vec<Interval> {
+    pub fn split_to_n(&self, n: usize) -> Vec<Interval> {
         if n == 0 {
             return Vec::new();
         }
@@ -77,6 +75,12 @@ impl Interval {
         }
 
         result
+    }
+}
+
+impl std::fmt::Display for Interval {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}..{}", self.lower, self.upper)
     }
 }
 

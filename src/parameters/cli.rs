@@ -84,6 +84,13 @@ pub struct Cli {
     pub ch_proc_in_size: Option<usize>,
 
     #[arg(
+        long = "ch_proc_query_size",
+        value_name = "U64",
+        help = "Amount of jobs loaded to memory concurrently during graph processing. Defaults to avail_cpus*2."
+    )]
+    pub ch_proc_query_size: Option<usize>,
+    
+    #[arg(
         long = "ch_proc_out_size",
         value_name = "U64",
         help = "Amount of sequence-meta pairs loaded to memory concurrently during graph processing. Defaults to avail_cpus*2."

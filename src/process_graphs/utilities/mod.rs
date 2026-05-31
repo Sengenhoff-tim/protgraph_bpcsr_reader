@@ -3,6 +3,7 @@ pub mod interval;
 pub mod pdbs;
 pub mod query_subgraph;
 pub mod string_table;
+pub mod traversal_job;
 
 pub use interval::{Interval, IntervalVecExt};
 pub use pdbs::Pdbs;
