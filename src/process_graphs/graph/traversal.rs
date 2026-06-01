@@ -25,7 +25,7 @@ impl TraversalData {
         traversal_state: &mut SubgraphForQuery,
     ) -> Result<TraversalStatus> {
         // clear subgraph
-        traversal_state.clear();
+        traversal_state.reset(self.nodes.len());
 
         // subgraph is build in a single forward pass
         for node_idx in 0..self.nodes.len() - 1 {

@@ -23,7 +23,7 @@ impl SubgraphForQuery {
         let max_states = limit / per_state;
 
         let mut arena = Vec::with_capacity(max_states);
-        let mut head_at_node = Vec::new();
+        let head_at_node = Vec::new();
 
         // root state
         arena.push(State {
@@ -34,8 +34,6 @@ impl SubgraphForQuery {
             tv: 0,
             previous: 0,
         });
-
-        head_at_node.push(0usize);
 
         Ok(Self {
             arena,
@@ -73,9 +71,9 @@ impl SubgraphForQuery {
         true
     }
 
-    pub fn clear(&mut self) {
+    pub fn reset(&mut self, num_nodes: usize) {
         self.arena.clear();
-        self.head_at_node.clear();
+        self.head_at_node.resize(num_nodes, 0);
 
         // restore root state
         self.arena.push(State {
@@ -86,8 +84,6 @@ impl SubgraphForQuery {
             tv: 0,
             previous: 0,
         });
-
-        self.head_at_node.push(0usize);
     }
 
     /// Reconstructs a single path starting from any node.
