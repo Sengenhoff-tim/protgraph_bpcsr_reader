@@ -8,12 +8,12 @@ pub struct State {
     pub edge: Option<u32>,
     pub var: u8,
     pub tv: i64,
-    pub previous: u32,
+    pub previous: Option<u32>,
 }
 
 pub struct SubgraphForQuery {
     pub arena: Vec<State>,
-    pub head_at_node: Vec<usize>,
+    pub head_at_node: Vec<Option<usize>>,
 }
 
 impl SubgraphForQuery {
@@ -22,18 +22,8 @@ impl SubgraphForQuery {
 
         let max_states = limit / per_state;
 
-        let mut arena = Vec::with_capacity(max_states);
+        let arena = Vec::with_capacity(max_states);
         let head_at_node = Vec::new();
-
-        // root state
-        arena.push(State {
-            parent: None,
-            node: 0,
-            edge: None,
-            var: 0,
-            tv: 0,
-            previous: 0,
-        });
 
         Ok(Self {
             arena,
@@ -55,7 +45,7 @@ impl SubgraphForQuery {
             return false;
         }
 
-        let new_idx = self.arena.len() as u32;
+        let prev = self.head_at_node[target_node];
 
         self.arena.push(State {
             parent,
@@ -63,17 +53,17 @@ impl SubgraphForQuery {
             edge: Some(edge),
             var,
             tv,
-            previous: self.head_at_node[target_node] as u32,
+            previous: prev.map(|x| x as u32),
         });
 
-        self.head_at_node[target_node] = new_idx as usize;
+        self.head_at_node[target_node] = prev;
 
         true
     }
 
     pub fn reset(&mut self, num_nodes: usize) {
         self.arena.clear();
-        self.head_at_node.resize(num_nodes, 0);
+        self.head_at_node.resize(num_nodes, None);
 
         // restore root state
         self.arena.push(State {
@@ -82,8 +72,10 @@ impl SubgraphForQuery {
             edge: None,
             var: 0,
             tv: 0,
-            previous: 0,
+            previous: None,
         });
+
+        self.head_at_node[0] = Some(0);
     }
 
     /// Reconstructs a single path starting from any node.

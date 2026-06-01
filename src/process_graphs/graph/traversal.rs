@@ -37,12 +37,12 @@ impl TraversalData {
 
             let edge_end = self.nodes[node_idx] as usize;
 
-            let mut cur = traversal_state.head_at_node[node_idx] as u32;
+            let mut cur = traversal_state.head_at_node[node_idx];
 
-            loop {
-                let state = unsafe { traversal_state.arena.get_unchecked(cur as usize) };
+            while let Some(idx) = cur {
+                let state = unsafe { traversal_state.arena.get_unchecked(idx) };
 
-                let next = state.previous;
+                let next = state.previous.map(|x| x as usize);
 
                 let tv = state.tv;
                 let var = state.var;
@@ -67,7 +67,7 @@ impl TraversalData {
                     }
 
                     if !traversal_state.push_state(
-                        Some(cur),
+                        Some(idx as u32),
                         self.edges[edge_idx],
                         edge_idx as u32,
                         new_var,
@@ -76,10 +76,6 @@ impl TraversalData {
                     ) {
                         return Ok(TraversalStatus::Overflow);
                     }
-                }
-
-                if next == 0 {
-                    break;
                 }
 
                 cur = next;

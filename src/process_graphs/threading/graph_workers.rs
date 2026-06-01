@@ -64,21 +64,17 @@ fn traversal_thread(
                 let mut cur =
                     traversal_state.head_at_node[job.graph.traversal_data.nodes.len() - 1];
 
-                loop {
+                while let Some(idx) = cur {
                     let prev =
-                        unsafe { traversal_state.arena.get_unchecked(cur).previous };
+                        unsafe { traversal_state.arena.get_unchecked(idx).previous };
 
-                    let trace = traversal_state.reconstruct_trace(cur);
+                    let trace = traversal_state.reconstruct_trace(idx);
 
                     if let Ok(Some(entry)) = job.graph.meta_data.build_peptide(&trace) {
                         let _ = tx_entry.send(entry);
                     }
 
-                    if prev == 0 {
-                        break;
-                    }
-
-                    cur = prev as usize;
+                    cur = prev.map(|x| x as usize);
                 }
 
                 tx_worker_results.send(TraversalWorkerResult::Complete)?;
