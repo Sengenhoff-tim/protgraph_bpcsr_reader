@@ -59,7 +59,7 @@ pub fn process_graphs(config: Config) -> Result<Vec<PathBuf>> {
         tx_worker_results,
         cli.avail_processors,
         cli.max_vars,
-        (cli.avail_memory as u64 * GB / cli.avail_processors as u64) as usize,
+        (cli.avail_memory as u64 * GB * 7/10/ cli.avail_processors as u64) as usize,
     )?;
 
     let graph_handle = spawn_graph_dispatcher(
