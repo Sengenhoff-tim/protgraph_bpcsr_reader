@@ -1,106 +1,84 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering::Relaxed},
-};
+use std::{thread::{self, JoinHandle}};
 
-use anyhow::Result;
-use crossbeam_channel::Sender;
-use rayon::{ThreadPoolBuilder, scope};
+use anyhow::{Result, Context, anyhow};
+use crossbeam_channel::{Receiver, Sender};
 
 use crate::process_graphs::{
-    graph::{MetaData, ProteinGraph, TraversalData},
-    utilities::{Interval, TraversalStatus},
+    graph::TraversalStatus, utilities::{SubgraphForQuery, traversal_job::{TraversalJob, TraversalWorkerResult}}
 };
 use crate::shared::BinEntry;
-
-pub struct WorkerArgs {
-    pub max_vars: u8,
-    pub limit: usize,
-    pub n_splits: u8,
-    pub max_depth: u8,
-}
-
+    
 pub fn spawn_workers(
-    protein_graph: ProteinGraph,
-    intervals: Arc<Vec<Interval>>,
+    rx_jobs: Receiver<TraversalJob>,
     tx_entry: Sender<BinEntry>,
+    tx_worker_results: Sender<TraversalWorkerResult>,
     num_threads: usize,
-    incomplete: Arc<AtomicBool>,
-    args: Arc<WorkerArgs>,
-) -> Result<()> {
-    let traversal_data = Arc::new(protein_graph.traversal_data);
-    let meta_data = Arc::new(protein_graph.meta_data);
+    max_vars: u8,
+    limit: usize,
+) -> Result<Vec<JoinHandle<Result<()>>>> {
+    let mut handles = Vec::with_capacity(num_threads);
 
-    let pool = ThreadPoolBuilder::new()
-        .num_threads(num_threads)
-        .build()
-        .unwrap();
+    for i in 0..num_threads {
+        let rx_jobs = rx_jobs.clone();
+        let tx_entry = tx_entry.clone();
+        let tx_worker_results = tx_worker_results.clone();
 
-    pool.install(|| {
-        scope(|s| {
-            for interval in intervals.iter().cloned() {
-                let data = Arc::clone(&traversal_data);
-                let meta = Arc::clone(&meta_data);
-                let tx_entry = tx_entry.clone();
-                let incomplete = Arc::clone(&incomplete);
-                let args = Arc::clone(&args);
-
-                s.spawn(move |_| {
-                    traversal_thread(data, meta, tx_entry, interval, incomplete, 0, args);
-                });
-            }
+        let handle: JoinHandle<Result<()>> = thread::spawn(move || {
+            traversal_thread(i, rx_jobs, tx_entry,tx_worker_results, max_vars, limit)
+                .with_context(|| format!("worker {i} died"))
         });
-    });
 
-    Ok(())
+        handles.push(handle);
+    }
+
+    Ok(handles)
 }
 
 fn traversal_thread(
-    data: Arc<TraversalData>,
-    meta: Arc<MetaData>,
+    worker_id: usize,
+    rx_jobs: Receiver<TraversalJob>,
     tx_entry: Sender<BinEntry>,
-    interval: Interval,
-    incomplete: Arc<AtomicBool>,
-    depth: u8,
-    args: Arc<WorkerArgs>,
-) {
-    // depth termination
-    if depth >= args.max_depth {
-        incomplete.store(true, Relaxed);
-        return;
-    }
+    tx_worker_results: Sender<TraversalWorkerResult>,
+    max_vars: u8,
+    limit: usize,
+) -> Result<()> {
+    let mut traversal_state = SubgraphForQuery::new(limit)?;
 
-    match data.traverse(&interval, args.max_vars, args.limit) {
-        Ok(TraversalStatus::Overflow()) => {
-            let splits = interval.split_to_n(args.n_splits);
-
-            for sub in splits {
-                let data = Arc::clone(&data);
-                let meta = Arc::clone(&meta);
-                let tx_entry = tx_entry.clone();
-                let incomplete = Arc::clone(&incomplete);
-                let args = Arc::clone(&args);
-
-                rayon::spawn(move || {
-                    traversal_thread(data, meta, tx_entry, sub, incomplete, depth + 1, args);
-                });
+    for job in rx_jobs {
+        match job.graph.traversal_data.traverse(job.interval, max_vars, &mut traversal_state) {
+            Ok(TraversalStatus::Overflow) => {
+                tx_worker_results.send(TraversalWorkerResult::Reschedule(job))
+                    .with_context(|| format!("worker {worker_id} failed to reschedule"))?;
             }
-        }
 
-        Ok(TraversalStatus::Complete(state)) => {
-            let final_states = &state.states_at_node[data.nodes.len() - 1];
+            Ok(TraversalStatus::Success) => {
+                let mut cur = traversal_state.head_at_node[job.graph.traversal_data.nodes.len() - 1];
 
-            for &state_id in final_states {
-                let trace = state.reconstruct_trace(state_id);
+                loop {
+                    let prev = unsafe {
+                        traversal_state.arena.get_unchecked(cur as usize).previous
+                    };
 
-                if let Ok(Some(entry)) = meta.build_peptide(&trace) {
-                    let _ = tx_entry.send(entry);
+                    let trace = traversal_state.reconstruct_trace(cur);
+
+                    if let Ok(Some(entry)) = job.graph.meta_data.build_peptide(&trace) {
+                        let _ = tx_entry.send(entry);
+                    }
+
+                    if prev == 0 {
+                        break;
+                    }
+                    
+                    cur = prev as usize;
                 }
+
+                tx_worker_results.send(TraversalWorkerResult::Complete)?;
+            }
+
+            Err(e) => {
+                return Err(anyhow!("worker {worker_id} traverse error: {e:?}"));
             }
         }
-
-        Err(e) => {
-            eprintln!("traverse error: {e:?}");
-        }
     }
+    Ok(())
 }

@@ -1,8 +1,6 @@
-use std::mem::take;
-
 use anyhow::Result;
 
-use crate::process_graphs::utilities::{Interval, Pdbs, SubgraphForQuery, TraversalStatus};
+use crate::process_graphs::{utilities::{Interval, Pdbs, SubgraphForQuery}};
 
 /// relevant information for traversal
 pub struct TraversalData {
@@ -13,33 +11,42 @@ pub struct TraversalData {
     pub pdbs: Pdbs,
 }
 
+pub enum TraversalStatus {
+    Success,
+    Overflow,
+}
+
 /// Inner traversal function. This closely follows the original implementation.
 impl TraversalData {
     pub fn traverse(
         &self,
-        interval: &Interval,
+        interval: Interval,
         max_vars: u8,
-        limit: usize,
+        traversal_state: &mut SubgraphForQuery,
     ) -> Result<TraversalStatus> {
-        // initialize edge ranges
-        let mut edge_ranges = Vec::with_capacity(self.nodes.len());
-        build_edge_ranges(&self.nodes, &mut edge_ranges);
 
-        // initialize subgraph
-        let mut traversal_state = SubgraphForQuery::new(self.nodes.len(), max_vars, limit);
+        // clear subgraph
+        traversal_state.clear();
 
         // subgraph is build in a single forward pass
-        for (node_idx, &(edge_begin, edge_end)) in
-            edge_ranges.iter().enumerate().take(self.nodes.len() - 1)
-        {
-            if traversal_state.states_at_node[node_idx].is_empty() {
-                continue;
-            }
+        for node_idx in 0..self.nodes.len() - 1 {
+            let edge_begin = if node_idx == 0 {
+                0
+            } else {
+                self.nodes[node_idx - 1] as usize
+            };
 
-            let current_states = take(&mut traversal_state.states_at_node[node_idx]);
+            let edge_end = self.nodes[node_idx] as usize;
 
-            for state_id in current_states {
-                let state = &traversal_state.arena[state_id];
+            let mut cur = traversal_state.head_at_node[node_idx] as u32;
+
+            loop {
+                let state = unsafe {
+                    traversal_state.arena.get_unchecked(cur as usize)
+                };
+
+                let next = state.previous;
+
                 let tv = state.tv;
                 let var = state.var;
 
@@ -54,28 +61,34 @@ impl TraversalData {
 
                     let achieved = tv + self.mono_weight[target_node];
 
-                    let lower = interval.lower - achieved;
-                    let upper = interval.upper - achieved;
-
-                    if !self.has_overlapping_interval(target_node, lower, upper) {
+                    if !self.has_overlapping_interval(
+                        target_node,
+                        interval.lower - achieved,
+                        interval.upper - achieved,
+                    ) {
                         continue;
                     }
 
-                    // If traversal state overflows 'limit', this returns 'overflow'.
                     if !traversal_state.push_state(
-                        Some(state_id),
+                        Some(cur),
                         self.edges[edge_idx],
                         edge_idx as u32,
                         new_var,
                         achieved,
                         target_node,
                     ) {
-                        return Ok(TraversalStatus::Overflow());
+                        return Ok(TraversalStatus::Overflow);
                     }
                 }
+
+                if next == 0 {
+                    break;
+                }
+
+                cur = next;
             }
         }
-        Ok(TraversalStatus::Complete(traversal_state))
+        Ok(TraversalStatus::Success)
     }
 
     // Check if intervals overlap. Intervals are not materialized for efficacy.
@@ -102,15 +115,5 @@ impl TraversalData {
         }
 
         false
-    }
-}
-
-/// edges are encoded in the node vector
-#[inline(always)]
-fn build_edge_ranges(nodes: &[u32], edge_ranges: &mut Vec<(usize, usize)>) {
-    for i in 0..nodes.len() {
-        let begin = if i == 0 { 0 } else { nodes[i - 1] as usize };
-        let end = nodes[i] as usize;
-        edge_ranges.push((begin, end));
     }
 }

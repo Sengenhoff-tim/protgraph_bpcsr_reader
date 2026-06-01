@@ -7,5 +7,5 @@ pub mod traversal_job;
 
 pub use interval::{Interval, IntervalVecExt};
 pub use pdbs::Pdbs;
-pub use query_subgraph::{SubgraphForQuery, TraversalStatus};
+pub use query_subgraph::SubgraphForQuery;
 pub use string_table::StringTable;

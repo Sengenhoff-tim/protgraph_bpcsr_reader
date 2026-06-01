@@ -5,4 +5,4 @@ mod traversal;
 
 pub use metadata::MetaData;
 pub use protein_graph::ProteinGraph;
-pub use traversal::TraversalData;
+pub use traversal::{TraversalData, TraversalStatus};
