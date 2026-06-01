@@ -61,8 +61,8 @@ fn traversal_thread(
             }
 
             Ok(TraversalStatus::Success) => {
-
-                let final_states = &traversal_state.states_at_node[job.graph.traversal_data.nodes.len() - 1];
+                let final_states =
+                    &traversal_state.states_at_node[job.graph.traversal_data.nodes.len() - 1];
 
                 for &state_id in final_states {
                     let trace = traversal_state.reconstruct_trace(state_id);

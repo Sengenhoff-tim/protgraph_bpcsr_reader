@@ -1,7 +1,4 @@
-use anyhow::{Error, Result};
-
 /// Bookkeeping for traversal
-
 #[derive(Debug, Clone)]
 pub struct State {
     pub parent: Option<u32>,
@@ -85,7 +82,7 @@ impl SubgraphForQuery {
 
         self.states_at_node.clear();
         self.states_at_node.resize_with(num_nodes, Vec::new);
-   
+
         self.arena.push(State {
             parent: None,
             node: 0,
