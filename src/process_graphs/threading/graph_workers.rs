@@ -1,13 +1,17 @@
-use std::{thread::{self, JoinHandle}};
+use std::thread::{self, JoinHandle};
 
-use anyhow::{Result, Context, anyhow};
+use anyhow::{Context, Result, anyhow};
 use crossbeam_channel::{Receiver, Sender};
 
 use crate::process_graphs::{
-    graph::TraversalStatus, utilities::{SubgraphForQuery, traversal_job::{TraversalJob, TraversalWorkerResult}}
+    graph::TraversalStatus,
+    utilities::{
+        SubgraphForQuery,
+        traversal_job::{TraversalJob, TraversalWorkerResult},
+    },
 };
 use crate::shared::BinEntry;
-    
+
 pub fn spawn_workers(
     rx_jobs: Receiver<TraversalJob>,
     tx_entry: Sender<BinEntry>,
@@ -24,7 +28,7 @@ pub fn spawn_workers(
         let tx_worker_results = tx_worker_results.clone();
 
         let handle: JoinHandle<Result<()>> = thread::spawn(move || {
-            traversal_thread(i, rx_jobs, tx_entry,tx_worker_results, max_vars, limit)
+            traversal_thread(i, rx_jobs, tx_entry, tx_worker_results, max_vars, limit)
                 .with_context(|| format!("worker {i} died"))
         });
 
@@ -45,19 +49,24 @@ fn traversal_thread(
     let mut traversal_state = SubgraphForQuery::new(limit)?;
 
     for job in rx_jobs {
-        match job.graph.traversal_data.traverse(job.interval, max_vars, &mut traversal_state) {
+        match job
+            .graph
+            .traversal_data
+            .traverse(job.interval, max_vars, &mut traversal_state)
+        {
             Ok(TraversalStatus::Overflow) => {
-                tx_worker_results.send(TraversalWorkerResult::Reschedule(job))
+                tx_worker_results
+                    .send(TraversalWorkerResult::Reschedule(job))
                     .with_context(|| format!("worker {worker_id} failed to reschedule"))?;
             }
 
             Ok(TraversalStatus::Success) => {
-                let mut cur = traversal_state.head_at_node[job.graph.traversal_data.nodes.len() - 1];
+                let mut cur =
+                    traversal_state.head_at_node[job.graph.traversal_data.nodes.len() - 1];
 
                 loop {
-                    let prev = unsafe {
-                        traversal_state.arena.get_unchecked(cur as usize).previous
-                    };
+                    let prev =
+                        unsafe { traversal_state.arena.get_unchecked(cur as usize).previous };
 
                     let trace = traversal_state.reconstruct_trace(cur);
 
@@ -68,7 +77,7 @@ fn traversal_thread(
                     if prev == 0 {
                         break;
                     }
-                    
+
                     cur = prev as usize;
                 }
 

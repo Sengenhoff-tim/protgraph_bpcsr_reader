@@ -1,6 +1,9 @@
-use std::{io::{BufRead, ErrorKind}, thread::{self, JoinHandle}};
+use std::{
+    io::{BufRead, ErrorKind},
+    thread::{self, JoinHandle},
+};
 
-use anyhow::{Result, anyhow, Context};
+use anyhow::{Context, Result, anyhow};
 use byteorder::{BigEndian, ReadBytesExt};
 use crossbeam_channel::Sender;
 
@@ -31,4 +34,3 @@ pub fn spawn_protein_graph_reader<R: BufRead + Send + 'static>(
         Ok(())
     })
 }
-

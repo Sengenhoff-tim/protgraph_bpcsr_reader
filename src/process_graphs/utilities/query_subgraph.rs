@@ -8,7 +8,7 @@ pub struct State {
     pub edge: Option<u32>,
     pub var: u8,
     pub tv: i64,
-    pub previous: u32
+    pub previous: u32,
 }
 
 pub struct SubgraphForQuery {
@@ -18,14 +18,12 @@ pub struct SubgraphForQuery {
 
 impl SubgraphForQuery {
     pub fn new(limit: usize) -> Result<Self, Error> {
-
         let per_state = size_of::<State>() + size_of::<usize>();
 
         let max_states = limit / per_state;
 
         let mut arena = Vec::with_capacity(max_states);
         let mut head_at_node = Vec::new();
-        
 
         // root state
         arena.push(State {
@@ -34,7 +32,7 @@ impl SubgraphForQuery {
             edge: None,
             var: 0,
             tv: 0,
-            previous: 0
+            previous: 0,
         });
 
         head_at_node.push(0usize);
@@ -55,7 +53,6 @@ impl SubgraphForQuery {
         tv: i64,
         target_node: usize,
     ) -> bool {
-        
         if self.arena.len() + 1 > self.arena.capacity() {
             return false;
         }
@@ -68,7 +65,7 @@ impl SubgraphForQuery {
             edge: Some(edge),
             var,
             tv,
-            previous: self.head_at_node[target_node] as u32
+            previous: self.head_at_node[target_node] as u32,
         });
 
         self.head_at_node[target_node] = new_idx as usize;
@@ -87,7 +84,7 @@ impl SubgraphForQuery {
             edge: None,
             var: 0,
             tv: 0,
-            previous: 0
+            previous: 0,
         });
 
         self.head_at_node.push(0usize);

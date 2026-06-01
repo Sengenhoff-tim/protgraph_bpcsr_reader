@@ -7,11 +7,17 @@ use std::{
 use anyhow::{Context, Result, anyhow};
 use crossbeam_channel::{bounded, unbounded};
 
-use crate::{process_graphs::{
-    graph::ProteinGraph,
-    threading::{spawn_graph_dispatcher, spawn_protein_graph_reader, spawn_writer_manager, spawn_workers}, utilities::traversal_job::{TraversalJob, TraversalWorkerResult},
-}, shared::BinEntry};
 use crate::parameters::Config;
+use crate::{
+    process_graphs::{
+        graph::ProteinGraph,
+        threading::{
+            spawn_graph_dispatcher, spawn_protein_graph_reader, spawn_workers, spawn_writer_manager,
+        },
+        utilities::traversal_job::{TraversalJob, TraversalWorkerResult},
+    },
+    shared::BinEntry,
+};
 
 const GB: u64 = 1024 * 1024 * 1024;
 const LOG_FILE_NAME: &str = "logs.csv";
@@ -42,9 +48,10 @@ pub fn process_graphs(config: Config) -> Result<Vec<PathBuf>> {
     // setup graph reader
     let graph = File::open(&cli.graph_input_path)?;
     let reader_for_graph = BufReader::new(graph);
-    
+
     // spawn tmp file writer
-    let bin_writer_handle = spawn_writer_manager(out_dir, cli.hash_bits, cli.max_handles, rx_entry)?;
+    let bin_writer_handle =
+        spawn_writer_manager(out_dir, cli.hash_bits, cli.max_handles, rx_entry)?;
 
     let worker_handles = spawn_workers(
         rx_jobs,
@@ -82,12 +89,12 @@ pub fn process_graphs(config: Config) -> Result<Vec<PathBuf>> {
             .join()
             .map_err(|_| anyhow::anyhow!("worker panicked"))?
             .with_context(|| "worker thread failed")?;
-        }
-    
+    }
+
     let result = bin_writer_handle
         .join()
-            .map_err(|e| anyhow!("bin writer thread panicked: {:?}", e))?
-            .context("bin writer thread failed")?;
+        .map_err(|e| anyhow!("bin writer thread panicked: {:?}", e))?
+        .context("bin writer thread failed")?;
 
     Ok(result)
 }

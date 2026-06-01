@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::process_graphs::{utilities::{Interval, Pdbs, SubgraphForQuery}};
+use crate::process_graphs::utilities::{Interval, Pdbs, SubgraphForQuery};
 
 /// relevant information for traversal
 pub struct TraversalData {
@@ -24,7 +24,6 @@ impl TraversalData {
         max_vars: u8,
         traversal_state: &mut SubgraphForQuery,
     ) -> Result<TraversalStatus> {
-
         // clear subgraph
         traversal_state.clear();
 
@@ -41,9 +40,7 @@ impl TraversalData {
             let mut cur = traversal_state.head_at_node[node_idx] as u32;
 
             loop {
-                let state = unsafe {
-                    traversal_state.arena.get_unchecked(cur as usize)
-                };
+                let state = unsafe { traversal_state.arena.get_unchecked(cur as usize) };
 
                 let next = state.previous;
 

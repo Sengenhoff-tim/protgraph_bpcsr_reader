@@ -17,7 +17,7 @@ impl Config {
     pub fn new() -> Result<Config> {
         let cli = Cli::parse();
 
-        if let Some(result ) = (cli.job_splits as i64).checked_pow(cli.job_split_depth as u32) {
+        if let Some(result) = (cli.job_splits as i64).checked_pow(cli.job_split_depth as u32) {
             if result > WEIGHT_FACTOR {
                 bail!(
                     "Job splits out of bounds. Current: {}^{}; Maximum: {}",

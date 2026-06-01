@@ -7,7 +7,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use anyhow::{Context, Result, Error};
+use anyhow::{Context, Error, Result};
 use crossbeam_channel::{Receiver, Sender};
 use lru::LruCache;
 
@@ -20,11 +20,12 @@ pub fn spawn_writer_manager(
     out_dir: &Path,
     hash_bits: Option<u8>,
     max_handles: Option<u32>,
-    rx_entry: Receiver<BinEntry>
-) -> Result<JoinHandle<Result<Vec<PathBuf>, Error>>>  {
+    rx_entry: Receiver<BinEntry>,
+) -> Result<JoinHandle<Result<Vec<PathBuf>, Error>>> {
     let out_dir = out_dir.to_path_buf();
 
-    let handle = thread::spawn(move || writer_manager_thread(rx_entry, &out_dir, hash_bits, max_handles));
+    let handle =
+        thread::spawn(move || writer_manager_thread(rx_entry, &out_dir, hash_bits, max_handles));
 
     Ok(handle)
 }

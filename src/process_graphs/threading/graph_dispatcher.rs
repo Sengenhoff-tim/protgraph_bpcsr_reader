@@ -9,7 +9,7 @@ use std::{
 use anyhow::{Error, Result};
 use crossbeam_channel::{Receiver, Sender};
 
-use crate::process_graphs::{utilities::traversal_job::{TraversalJob, TraversalWorkerResult}};
+use crate::process_graphs::utilities::traversal_job::{TraversalJob, TraversalWorkerResult};
 use crate::process_graphs::{graph::ProteinGraph, utilities::Interval};
 
 pub fn spawn_graph_dispatcher(
@@ -19,7 +19,7 @@ pub fn spawn_graph_dispatcher(
     intervals: Vec<Interval>,
     log_writer: BufWriter<File>,
     job_splits: usize,
-    job_split_depth: usize
+    job_split_depth: usize,
 ) -> Result<JoinHandle<Result<(), Error>>> {
     let handle = thread::spawn(move || -> Result<()> {
         let mut log_writer = log_writer;
@@ -37,7 +37,7 @@ pub fn spawn_graph_dispatcher(
                         &tx_jobs,
                         &mut log_writer,
                         job_splits,
-                        job_split_depth
+                        job_split_depth,
                     )?;
                 }
 
@@ -61,7 +61,7 @@ pub fn spawn_graph_dispatcher(
                 &tx_jobs,
                 &mut log_writer,
                 job_splits,
-                job_split_depth
+                job_split_depth,
             )?;
         }
         Ok(())
@@ -76,7 +76,7 @@ fn handle_worker_result(
     tx_jobs: &Sender<TraversalJob>,
     log_writer: &mut BufWriter<File>,
     job_splits: usize,
-    job_split_depth: usize
+    job_split_depth: usize,
 ) -> anyhow::Result<()> {
     match result {
         TraversalWorkerResult::Complete => {
@@ -92,8 +92,7 @@ fn handle_worker_result(
                 writeln!(
                     log_writer,
                     "{},{},Incomplete traversal due to split depth limit",
-                    job.graph.meta_data.accessions[0],
-                    job.interval
+                    job.graph.meta_data.accessions[0], job.interval
                 )?;
 
                 return Ok(());
