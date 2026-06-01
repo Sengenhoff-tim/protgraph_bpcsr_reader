@@ -8,7 +8,7 @@ use std::{
 };
 
 use anyhow::{Context, Error, Result};
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::Receiver;
 use lru::LruCache;
 
 use crate::process_graphs::io::bin_writer::{

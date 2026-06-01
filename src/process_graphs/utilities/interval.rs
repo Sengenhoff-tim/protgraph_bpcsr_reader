@@ -39,7 +39,7 @@ impl Interval {
 
         let step = (size + n as i64 - 1) / n as i64;
 
-        let mut out = Vec::with_capacity(n as usize);
+        let mut out = Vec::with_capacity(n);
         let mut start = self.lower;
 
         while start <= self.upper {

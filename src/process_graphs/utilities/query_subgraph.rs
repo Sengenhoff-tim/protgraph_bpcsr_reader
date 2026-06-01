@@ -1,4 +1,4 @@
-use anyhow::{Error, Result, anyhow};
+use anyhow::{Error, Result};
 
 /// Bookkeeping for traversal
 #[derive(Debug, Clone)]

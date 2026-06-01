@@ -66,7 +66,7 @@ fn traversal_thread(
 
                 loop {
                     let prev =
-                        unsafe { traversal_state.arena.get_unchecked(cur as usize).previous };
+                        unsafe { traversal_state.arena.get_unchecked(cur).previous };
 
                     let trace = traversal_state.reconstruct_trace(cur);
 

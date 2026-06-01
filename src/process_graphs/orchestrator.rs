@@ -57,7 +57,7 @@ pub fn process_graphs(config: Config) -> Result<Vec<PathBuf>> {
         rx_jobs,
         tx_entry,
         tx_worker_results,
-        cli.avail_processors as usize,
+        cli.avail_processors,
         cli.max_vars,
         (cli.avail_memory as u64 * GB / cli.avail_processors as u64) as usize,
     )?;

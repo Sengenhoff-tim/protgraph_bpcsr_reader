@@ -103,7 +103,7 @@ fn handle_worker_result(
             for interval in &splits {
                 tx_jobs.send(TraversalJob {
                     graph: job.graph.clone(),
-                    interval: interval.clone(),
+                    interval: *interval,
                     depth: new_depth,
                 })?;
             }
