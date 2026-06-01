@@ -56,7 +56,7 @@ impl SubgraphForQuery {
             previous: prev.map(|x| x as u32),
         });
 
-        self.head_at_node[target_node] = prev;
+        self.head_at_node[target_node] = Some(self.arena.len());
 
         true
     }
