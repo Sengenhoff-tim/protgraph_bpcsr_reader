@@ -46,7 +46,7 @@ fn traversal_thread(
     max_vars: u8,
     limit: usize,
 ) -> Result<()> {
-    let mut traversal_state = SubgraphForQuery::new(limit)?;
+    let mut traversal_state = SubgraphForQuery::new(limit);
 
     for job in rx_jobs {
         match job
@@ -61,20 +61,15 @@ fn traversal_thread(
             }
 
             Ok(TraversalStatus::Success) => {
-                let mut cur =
-                    traversal_state.head_at_node[job.graph.traversal_data.nodes.len() - 1];
 
-                while let Some(idx) = cur {
-                    let prev =
-                        unsafe { traversal_state.arena.get_unchecked(idx).previous };
+                let final_states = &traversal_state.states_at_node[job.graph.traversal_data.nodes.len() - 1];
 
-                    let trace = traversal_state.reconstruct_trace(idx);
+                for &state_id in final_states {
+                    let trace = traversal_state.reconstruct_trace(state_id);
 
                     if let Ok(Some(entry)) = job.graph.meta_data.build_peptide(&trace) {
                         let _ = tx_entry.send(entry);
                     }
-
-                    cur = prev.map(|x| x as usize);
                 }
 
                 tx_worker_results.send(TraversalWorkerResult::Complete)?;

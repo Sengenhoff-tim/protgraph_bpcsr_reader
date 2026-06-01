@@ -1,6 +1,7 @@
 use anyhow::{Error, Result};
 
 /// Bookkeeping for traversal
+
 #[derive(Debug, Clone)]
 pub struct State {
     pub parent: Option<u32>,
@@ -8,74 +9,26 @@ pub struct State {
     pub edge: Option<u32>,
     pub var: u8,
     pub tv: i64,
-    pub previous: Option<u32>,
 }
 
 pub struct SubgraphForQuery {
     pub arena: Vec<State>,
-    pub head_at_node: Vec<Option<usize>>,
+    pub states_at_node: Vec<Vec<usize>>,
 }
 
 impl SubgraphForQuery {
-    pub fn new(limit: usize) -> Result<Self, Error> {
+    pub fn new(limit: usize) -> Self {
         let per_state = size_of::<State>() + size_of::<usize>();
 
         let max_states = limit / per_state;
 
         let arena = Vec::with_capacity(max_states);
-        let head_at_node = Vec::new();
+        let states_at_node = Vec::new();
 
-        Ok(Self {
+        Self {
             arena,
-            head_at_node,
-        })
-    }
-
-    #[inline]
-    pub fn push_state(
-        &mut self,
-        parent: Option<u32>,
-        node: u32,
-        edge: u32,
-        var: u8,
-        tv: i64,
-        target_node: usize,
-    ) -> bool {
-        if self.arena.len() + 1 > self.arena.capacity() {
-            return false;
+            states_at_node,
         }
-
-        let prev = self.head_at_node[target_node];
-
-        self.head_at_node[target_node] = Some(self.arena.len());
-
-        self.arena.push(State {
-            parent,
-            node,
-            edge: Some(edge),
-            var,
-            tv,
-            previous: prev.map(|x| x as u32),
-        });
-
-        true
-    }
-
-    pub fn reset(&mut self, num_nodes: usize) {
-        self.arena.clear();
-        self.head_at_node.resize(num_nodes, None);
-
-        // restore root state
-        self.arena.push(State {
-            parent: None,
-            node: 0,
-            edge: None,
-            var: 0,
-            tv: 0,
-            previous: None,
-        });
-
-        self.head_at_node[0] = Some(0);
     }
 
     /// Reconstructs a single path starting from any node.
@@ -93,5 +46,54 @@ impl SubgraphForQuery {
 
         trace.reverse();
         trace
+    }
+
+    /// Checks for memory overflow since traversal state grows exponentially.
+    #[inline]
+    pub fn push_state(
+        &mut self,
+        parent: Option<u32>,
+        node: u32,
+        edge: u32,
+        var: u8,
+        tv: i64,
+        target_node: usize,
+    ) -> bool {
+        let len: usize = self.arena.len();
+
+        if self.arena.len() == self.arena.capacity() {
+            return false;
+        }
+
+        self.arena.push(State {
+            parent,
+            node,
+            edge: Some(edge),
+            var,
+            tv,
+        });
+
+        self.states_at_node[target_node].push(len);
+
+        true
+    }
+}
+
+impl SubgraphForQuery {
+    pub fn reset(&mut self, num_nodes: usize) {
+        self.arena.clear();
+
+        self.states_at_node.clear();
+        self.states_at_node.resize_with(num_nodes, Vec::new);
+   
+        self.arena.push(State {
+            parent: None,
+            node: 0,
+            edge: None,
+            var: 0,
+            tv: 0,
+        });
+
+        self.states_at_node[0].push(0_usize);
     }
 }
