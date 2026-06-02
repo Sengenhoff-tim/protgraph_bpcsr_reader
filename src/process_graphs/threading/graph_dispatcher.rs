@@ -88,17 +88,30 @@ fn handle_worker_result(
 
             let new_depth = job.depth + 1;
 
+            
+
             if new_depth > job_split_depth {
                 writeln!(
                     log_writer,
-                    "{},{},Incomplete traversal due to split depth limit",
+                    "{},{},Incomplete traversal: split depth limit reached",
+                    job.graph.meta_data.accessions[0], job.interval
+                )?;
+
+                return Ok(())
+            }
+
+            let splits = job.interval.split_to_n(job_splits);
+
+            if splits.len() == 1 {
+                writeln!(
+                    log_writer,
+                    "{},{},Incomplete traversal: No further splits possible",
                     job.graph.meta_data.accessions[0], job.interval
                 )?;
 
                 return Ok(());
             }
-
-            let splits = job.interval.split_to_n(job_splits);
+            
 
             for interval in &splits {
                 tx_jobs.send(TraversalJob {

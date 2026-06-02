@@ -21,11 +21,16 @@ pub fn read_entries_binary(path: impl AsRef<Path>, len_buf: &mut [u8; 4], entry_
     loop {
         
 
-        match reader.read_exact(len_buf) {
-            Ok(()) => {}
-            Err(e) if e.kind() == ErrorKind::UnexpectedEof => {
-                break;
-            }
+        match reader.read(len_buf) {
+            Ok(0) => break,
+            Ok(4) => {}
+            Ok(n) => {
+                anyhow::bail!(
+                    "truncated length prefix: expected 4 bytes, got {} in {}",
+                    n,
+                    path.display()
+                );
+            }       
             Err(e) => {
                 return Err(e).with_context(|| {
                     format!("failed reading length prefix from {}", path.display())
