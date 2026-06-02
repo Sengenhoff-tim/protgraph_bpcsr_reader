@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fs::File,
+    fs::{File, create_dir_all},
     io::{BufWriter, Write},
     num::NonZeroUsize,
     path::{Path, PathBuf},
@@ -12,7 +12,7 @@ use crossbeam_channel::Receiver;
 use lru::LruCache;
 
 use crate::process_graphs::io::bin_writer::{
-    ensure_parent_dir, open_writer, resolve_path, write_entry_binary,
+    open_writer, resolve_path, write_entry_binary,
 };
 use crate::shared::BinEntry;
 
@@ -55,6 +55,8 @@ fn writer_manager_thread(
     let mut filenames: HashMap<usize, PathBuf> = HashMap::new();
 
     let tmp_path = &out_dir.join("tmp");
+
+    create_dir_all(tmp_path)?;
 
     while let Ok(entry) = rx.recv() {
         let path = resolve_path(&entry, tmp_path, shard_mask, use_subdirs, &mut filenames);

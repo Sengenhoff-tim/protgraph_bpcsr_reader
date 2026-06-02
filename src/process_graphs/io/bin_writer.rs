@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fs::{File, OpenOptions, create_dir_all},
+    fs::{File, OpenOptions},
     io::{BufWriter, Write},
     path::{Path, PathBuf},
 };
@@ -61,11 +61,4 @@ pub fn resolve_path(
         .entry(shard_id)
         .or_insert_with(|| shard_filename(out_dir, hash, shard_id, use_subdirs))
         .clone()
-}
-
-pub fn ensure_parent_dir(path: &Path) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        create_dir_all(parent)?;
-    }
-    Ok(())
 }
