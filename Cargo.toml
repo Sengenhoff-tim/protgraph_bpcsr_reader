@@ -16,3 +16,4 @@ lru = "0.18.0"
 memmap2 = "0.9.10"
 nix = { version = "0.31.3", features = ["resource"] }
 flate2 = "1.0"
+mimalloc = { version = "*", features = ["v2"] }

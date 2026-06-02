@@ -5,6 +5,11 @@ mod parameters;
 mod process_graphs;
 mod shared;
 
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 use crate::{
     deduplicate_output::dedup_bin_files, parameters::Config, process_graphs::process_graphs,
 };

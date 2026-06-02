@@ -59,7 +59,7 @@ fn writer_manager_thread(
     while let Ok(entry) = rx.recv() {
         let path = resolve_path(&entry, tmp_path, shard_mask, use_subdirs, &mut filenames);
 
-        ensure_parent_dir(&path)?;
+        //ensure_parent_dir(&path)?;
 
         let writer = get_writer(&mut writers, &path)?;
 

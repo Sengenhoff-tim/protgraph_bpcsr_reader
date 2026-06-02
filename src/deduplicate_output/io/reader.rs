@@ -9,19 +9,19 @@ use bincode::config::standard;
 
 use crate::shared::BinEntry;
 
-pub fn read_entries_binary(path: impl AsRef<Path>) -> Result<Vec<BinEntry>> {
+pub fn read_entries_binary(path: impl AsRef<Path>, len_buf: &mut [u8; 4], entry_buf: &mut Vec<u8>) -> Result<Vec<BinEntry>> {
     let path = path.as_ref();
 
     let file = File::open(path).with_context(|| format!("failed to open {}", path.display()))?;
 
     let mut reader = BufReader::new(file);
 
-    let mut entries = Vec::new();
+    let mut entries: Vec<BinEntry> = Vec::new();
 
     loop {
-        let mut len_buf = [0u8; 4];
+        
 
-        match reader.read_exact(&mut len_buf) {
+        match reader.read_exact(len_buf) {
             Ok(()) => {}
             Err(e) if e.kind() == ErrorKind::UnexpectedEof => {
                 break;
@@ -33,16 +33,26 @@ pub fn read_entries_binary(path: impl AsRef<Path>) -> Result<Vec<BinEntry>> {
             }
         }
 
-        let len = u32::from_le_bytes(len_buf) as usize;
+        let len = u32::from_le_bytes(*len_buf) as usize;
 
-        let mut bytes = vec![0u8; len];
+        if entry_buf.len() < len {
+            entry_buf.resize(len, 0);
+        }
 
         reader
-            .read_exact(&mut bytes)
+            .read_exact(&mut entry_buf[..len])
             .with_context(|| format!("failed reading {} bytes from {}", len, path.display()))?;
 
-        let (entry, _): (BinEntry, usize) = bincode::decode_from_slice(&bytes, standard())
-            .with_context(|| format!("failed to deserialize entry from {}", path.display()))?;
+        let (entry, consumed): (BinEntry, usize) =
+            bincode::decode_from_slice(&entry_buf[..len], standard())
+                .with_context(|| format!("failed to deserialize entry from {}", path.display()))?;
+
+        if consumed != len {
+            anyhow::bail!(
+                "entry contained {} trailing bytes",
+                len - consumed
+            );
+        }
 
         entries.push(entry);
     }

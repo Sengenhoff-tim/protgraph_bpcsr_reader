@@ -11,8 +11,15 @@ pub fn spawn_dispatcher(
     tx: Sender<Vec<BinEntry>>,
 ) -> std::thread::JoinHandle<Result<()>> {
     std::thread::spawn(move || -> Result<()> {
+
+        
+
+        let mut len_buf: [u8; 4] = [0u8; 4];
+
+        let mut entry_buf: Vec<u8> = Vec::new();
+        
         for path in result {
-            let entries = read_entries_binary(&path)
+            let entries = read_entries_binary(&path, &mut len_buf, &mut entry_buf)
                 .with_context(|| format!("failed to read entries from {}", path.display()))?;
 
             tx.send(entries).context("failed to send decoded entries")?;
