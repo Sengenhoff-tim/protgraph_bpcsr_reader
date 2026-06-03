@@ -46,8 +46,8 @@ pub struct Cli {
         short = 'l',
         long = "lower_bound",
         value_name = "I64",
-        default_value_t = 600,
-        help = "Global minimum peptide weight in Da. Defaults to 600."
+        default_value_t = 100,
+        help = "Global minimum peptide weight in Da. Defaults to 100."
     )]
     pub lower_bound: i64,
 
@@ -55,8 +55,8 @@ pub struct Cli {
         short = 'u',
         long = "upper_bound",
         value_name = "I64",
-        default_value_t = 4000,
-        help = "Global maximum peptide weight in Da. Defaults to 4000."
+        default_value_t = 10000,
+        help = "Global maximum peptide weight in Da. Defaults to 10000."
     )]
     pub upper_bound: i64,
 
@@ -138,7 +138,7 @@ pub struct Cli {
     #[arg(
         long = "job_splits",
         value_name = "U8",
-        default_value_t = 4,
+        default_value_t = 16,
         help = "Number of sub-jobs created per split when memory limit reached."
     )]
     pub job_splits: u8,
