@@ -1,6 +1,6 @@
 use std::{fs::File, path::PathBuf};
 
-use anyhow::{Result, bail};
+use anyhow::{Result};
 use csv::Reader;
 
 use crate::process_graphs::utilities::Interval;
@@ -18,12 +18,14 @@ pub fn read_query_csv(
         .map(|result| {
             let interval: Interval = result?;
 
-            //validate_interval(&interval)?;
+            println!("{},{},{}",interval, interval.lower, interval.upper);
 
             interval
                 .validate()?
                 .clamp(lower, upper)
                 .apply_weight_factor();
+
+            println!("{},{},{}",interval, interval.lower, interval.upper);
 
             Ok(interval)
         })
