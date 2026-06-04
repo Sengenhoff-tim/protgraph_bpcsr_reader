@@ -16,14 +16,15 @@ pub fn read_query_csv(
     let intervals: Vec<Interval> = reader
         .deserialize()
         .map(|result| {
-            let interval: Interval = result?;
+            let mut interval: Interval = result?;
 
             println!("{},{},{}",interval, interval.lower, interval.upper);
 
             interval
-                .validate()?
                 .clamp(lower, upper)
                 .apply_weight_factor();
+
+            interval.validate()?;
 
             println!("{},{},{}",interval, interval.lower, interval.upper);
 
