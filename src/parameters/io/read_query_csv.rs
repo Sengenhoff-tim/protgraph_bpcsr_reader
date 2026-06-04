@@ -18,15 +18,11 @@ pub fn read_query_csv(
         .map(|result| {
             let mut interval: Interval = result?;
 
-            println!("{},{},{}",interval, interval.lower, interval.upper);
-
             interval
                 .clamp(lower, upper)
                 .apply_weight_factor();
 
             interval.validate()?;
-
-            println!("{},{},{}",interval, interval.lower, interval.upper);
 
             Ok(interval)
         })
