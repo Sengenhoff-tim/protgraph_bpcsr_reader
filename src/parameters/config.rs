@@ -3,9 +3,7 @@ use clap::Parser;
 
 use crate::parameters::Cli;
 use crate::parameters::io::read_query_csv::read_query_csv;
-use crate::process_graphs::utilities::{Interval, IntervalVecExt};
-
-const WEIGHT_FACTOR: i64 = 1000000000; //as per the original implementation
+use crate::process_graphs::utilities::{Interval, IntervalVecExt, WEIGHT_FACTOR};
 
 /// struct containing the collated input
 pub struct Config {
@@ -35,7 +33,6 @@ impl Config {
             &cli.query_input_path,
             cli.lower_bound,
             cli.upper_bound,
-            WEIGHT_FACTOR,
         )?;
 
         // intervals are split into bins and converted for internal representation

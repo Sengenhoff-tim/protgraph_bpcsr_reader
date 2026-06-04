@@ -1,7 +1,9 @@
-use anyhow::Result;
+use anyhow::{Result,bail};
 use serde::Deserialize;
 
 // A helper struct for intervals of protein weights. Inclusive on both ends: [lower, upper]
+
+pub const WEIGHT_FACTOR: i64 = 1000000000; //as per the original implementation
 
 #[derive(Clone, Copy, Debug, Deserialize)]
 pub struct Interval {
@@ -14,14 +16,33 @@ impl Interval {
         self.lower <= other.upper && other.lower <= self.upper
     }
 
-    pub fn merge_with(&mut self, other: &Interval) {
-        self.lower = self.lower.min(other.lower);
-        self.upper = self.upper.max(other.upper);
+    pub fn apply_weight_factor(&mut self) -> &mut Self{
+        self.lower *= WEIGHT_FACTOR;
+        self.upper *= WEIGHT_FACTOR;
+        self
     }
 
-    pub fn clamp(&mut self, min: i64, max: i64) {
+    pub fn merge_with(&mut self, other: &Interval) -> &mut Self{
+        self.lower = self.lower.min(other.lower);
+        self.upper = self.upper.max(other.upper);
+        self
+    }
+
+    pub fn clamp(&mut self, min: i64, max: i64) -> &mut Self{
         self.lower = self.lower.clamp(min, max);
         self.upper = self.upper.clamp(min, max);
+        self
+    }
+
+    pub fn validate(&self) -> Result<Self> {
+        if self.lower > self.upper {
+            bail!(
+                "Invalid interval: lower ({}) > upper ({})",
+                self.lower,
+                self.upper
+            );
+        }
+        Ok(*self)
     }
 
     /// Splits one interval to n roughly equal intervals. Used for job rescheduling.
@@ -80,9 +101,15 @@ impl Interval {
 
 impl std::fmt::Display for Interval {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}..{}", self.lower, self.upper)
+        write!(
+            f,
+            "{}..{}",
+            self.lower as f64 / WEIGHT_FACTOR as f64,
+            self.upper as f64 / WEIGHT_FACTOR as f64
+        )
     }
 }
+
 
 pub trait IntervalVecExt {
     fn to_chunks(self, chunk_size: i64) -> Result<Vec<Interval>>;

@@ -9,7 +9,6 @@ pub fn read_query_csv(
     path: &PathBuf,
     lower: i64,
     upper: i64,
-    weight_factor: i64,
 ) -> Result<Vec<Interval>> {
     let file = File::open(path)?;
     let mut reader = Reader::from_reader(file);
@@ -17,14 +16,14 @@ pub fn read_query_csv(
     let intervals: Vec<Interval> = reader
         .deserialize()
         .map(|result| {
-            let mut interval: Interval = result?;
+            let interval: Interval = result?;
 
-            validate_interval(&interval)?;
+            //validate_interval(&interval)?;
 
-            interval.clamp(lower, upper);
-
-            interval.lower *= weight_factor;
-            interval.upper *= weight_factor;
+            interval
+                .validate()?
+                .clamp(lower, upper)
+                .apply_weight_factor();
 
             Ok(interval)
         })
@@ -33,13 +32,4 @@ pub fn read_query_csv(
     Ok(intervals)
 }
 
-fn validate_interval(interval: &Interval) -> Result<()> {
-    if interval.lower > interval.upper {
-        bail!(
-            "Invalid interval: lower ({}) > upper ({})",
-            interval.lower,
-            interval.upper
-        );
-    }
-    Ok(())
-}
+

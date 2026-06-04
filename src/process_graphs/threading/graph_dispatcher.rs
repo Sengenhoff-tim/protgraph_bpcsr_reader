@@ -29,6 +29,12 @@ pub fn spawn_graph_dispatcher(
         for graph in rx_graphs {
             let graph = Arc::new(graph);
 
+            writeln!(
+                    log_writer,
+                    "{},Traversal started",
+                    graph.meta_data.accessions[0]
+                )?;
+
             for interval in intervals.iter().cloned() {
                 while let Ok(result) = rx_worker_results.try_recv() {
                     handle_worker_result(
@@ -93,7 +99,7 @@ fn handle_worker_result(
             if new_depth > job_split_depth {
                 writeln!(
                     log_writer,
-                    "{},{},Incomplete traversal: split depth limit reached",
+                    "{},Incomplete traversal: split depth limit reached,{}",
                     job.graph.meta_data.accessions[0], job.interval
                 )?;
 
@@ -105,7 +111,7 @@ fn handle_worker_result(
             if splits.len() == 1 {
                 writeln!(
                     log_writer,
-                    "{},{},Incomplete traversal: No further splits possible",
+                    "{},Incomplete traversal: No further splits possible,{}",
                     job.graph.meta_data.accessions[0], job.interval
                 )?;
 
