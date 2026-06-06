@@ -148,7 +148,8 @@ impl<'a> Iterator for BinEntryIterator<'a> {
         self.offset = end;
 
         Some(EntryRef {
-            start: start as u64,
+            //TODO make nicer
+            start: start as u64 +4,
             len: len as u32,
         })
     }
