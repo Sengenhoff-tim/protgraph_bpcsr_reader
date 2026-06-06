@@ -73,7 +73,13 @@ pub fn spawn_writers(
                     }
                 }
                 buffer.clear();
-                tx_buffer_empty.send(result.buffer)?;
+
+                //TODO add graceful exit
+                if tx_buffer_empty.send(result.buffer).is_err() {
+                    seq_writer.flush()?;
+                    meta_writer.flush()?;
+                    return Ok(());
+                };
             }
 
             seq_writer.flush()?;

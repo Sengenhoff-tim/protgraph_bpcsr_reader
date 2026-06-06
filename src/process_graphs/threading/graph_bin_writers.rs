@@ -71,10 +71,13 @@ fn writer_manager_thread(
 
         entry_buff.clear();
 
-        tx_result_buffer_empty.send(entry_buff)?;
+        //TODO add graceful exit strategy
+        if tx_result_buffer_empty.send(entry_buff).is_err() {
+            return Ok(());
+        }
     }
 
-    // flush remaining handlesx^
+    // flush remaining handles
     for (_, writer) in writers.iter_mut() {
         writer.flush()?;
     }
