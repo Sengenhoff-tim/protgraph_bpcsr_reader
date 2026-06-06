@@ -131,7 +131,7 @@ impl<'a> Iterator for BinEntryIterator<'a> {
 
         let start = self.offset;
 
-        let record_size = u64::from_le_bytes(
+        let record_size = u32::from_le_bytes(
             self.data[start..start + 4]
                 .try_into()
                 .ok()?,
@@ -148,8 +148,7 @@ impl<'a> Iterator for BinEntryIterator<'a> {
         self.offset = end;
 
         Some(EntryRef {
-            //TODO make nicer
-            start: start as u64 +4,
+            start: start as u64,
             len: len as u32,
         })
     }
