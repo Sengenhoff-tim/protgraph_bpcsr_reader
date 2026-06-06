@@ -32,6 +32,15 @@ impl StringTable {
         }
     }
 
+    pub fn get_slice(&self, idx: usize) -> &[u8] {
+        let r = unsafe { self.mapping.get_unchecked(idx) };
+
+        unsafe {
+            self.buffer
+                .get_unchecked(r.start as usize..(r.start + r.len) as usize)
+        }
+    }
+
     /// Struct is populated from input string
     pub fn build_from_strings<I>(items: I) -> Self
     where

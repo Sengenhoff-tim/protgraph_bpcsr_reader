@@ -8,34 +8,36 @@ use std::{
 };
 
 use anyhow::{Context, Error, Result};
-use crossbeam_channel::Receiver;
+use crossbeam_channel::{Receiver, Sender};
 use lru::LruCache;
 
 use crate::process_graphs::io::bin_writer::{
     open_writer, resolve_path, write_entry_binary,
 };
-use crate::shared::BinEntry;
+use crate::shared::EntryBuffer;
 
 pub fn spawn_writer_manager(
+    rx_result_buffer_full: Receiver<EntryBuffer>,
+    tx_result_buffer_empty: Sender<EntryBuffer>,
     out_dir: &Path,
     hash_bits: Option<u8>,
     max_handles: Option<u32>,
-    rx_entry: Receiver<BinEntry>,
-) -> Result<JoinHandle<Result<Vec<PathBuf>, Error>>> {
+) -> Result<JoinHandle<Result<(), Error>>> {
     let out_dir = out_dir.to_path_buf();
 
     let handle =
-        thread::spawn(move || writer_manager_thread(rx_entry, &out_dir, hash_bits, max_handles));
+        thread::spawn(move || writer_manager_thread(rx_result_buffer_full, tx_result_buffer_empty, &out_dir, hash_bits, max_handles));
 
     Ok(handle)
 }
 
 fn writer_manager_thread(
-    rx: Receiver<BinEntry>,
+    rx_result_buffer_full: Receiver<EntryBuffer>,
+    tx_result_buffer_empty: Sender<EntryBuffer>,
     out_dir: &Path,
     hash_bits: Option<u8>,
     max_handles: Option<u32>,
-) -> Result<Vec<PathBuf>> {
+) -> Result<()> {
     // determine maximum file handles if not set
     let max_h = max_handles.unwrap_or_else(get_sys_open_files);
 
@@ -58,26 +60,26 @@ fn writer_manager_thread(
 
     create_dir_all(tmp_path)?;
 
-    while let Ok(entry) = rx.recv() {
-        let path = resolve_path(&entry, tmp_path, shard_mask, use_subdirs, &mut filenames);
+    while let Ok(mut entry_buff) = rx_result_buffer_full.recv() {
+        for entry in entry_buff.iter() {
+            let path = resolve_path(entry.get_seq(&entry_buff), tmp_path, shard_mask, use_subdirs, &mut filenames);
 
-        //ensure_parent_dir(&path)?;
+            let writer = get_writer(&mut writers, &path).context("Failed to open shard file")?;
 
-        let writer = get_writer(&mut writers, &path)?;
+            write_entry_binary(writer, entry.get(&entry_buff))?;
+        }
 
-        write_entry_binary(writer, &entry)?;
+        entry_buff.clear();
+
+        tx_result_buffer_empty.send(entry_buff)?;
     }
 
-    // flush remaining handles
+    // flush remaining handlesx^
     for (_, writer) in writers.iter_mut() {
         writer.flush()?;
     }
 
-    let mut files: Vec<PathBuf> = filenames.into_values().collect();
-
-    files.sort();
-
-    Ok(files)
+    Ok(())
 }
 
 fn get_writer<'a>(

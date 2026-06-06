@@ -6,21 +6,15 @@ use std::{
 };
 
 use anyhow::Result;
-use bincode::{config::standard, encode_to_vec};
 use xxhash_rust::xxh64::xxh64;
-
-use crate::shared::BinEntry;
 
 const SEED: u64 = 0xC0111DE;
 
-pub fn write_entry_binary(writer: &mut BufWriter<File>, entry: &BinEntry) -> Result<()> {
-    let bytes = encode_to_vec(entry, standard())?;
-
-    let len = bytes.len() as u32;
-
-    writer.write_all(&len.to_le_bytes())?;
-    writer.write_all(&bytes)?;
-
+pub fn write_entry_binary(
+    writer: &mut BufWriter<File>,
+    entry_bytes: &[u8],
+) -> Result<()> {
+    writer.write_all(entry_bytes)?;
     Ok(())
 }
 
@@ -48,13 +42,13 @@ pub fn shard_filename(out_dir: &Path, hash: u64, shard_id: usize, use_subdirs: b
 }
 
 pub fn resolve_path(
-    entry: &BinEntry,
+    entry: &[u8],
     out_dir: &Path,
     shard_mask: usize,
     use_subdirs: bool,
     filenames: &mut HashMap<usize, PathBuf>,
 ) -> PathBuf {
-    let hash = xxh64(entry.seq.as_bytes(), SEED);
+    let hash = xxh64(entry, SEED);
     let shard_id = (hash as usize) & shard_mask;
 
     filenames

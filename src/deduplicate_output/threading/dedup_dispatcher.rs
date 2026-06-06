@@ -1,28 +1,25 @@
-use std::path::PathBuf;
+use std::path::{PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{Result};
 use crossbeam_channel::Sender;
 
-use crate::deduplicate_output::io::read_entries_binary;
-use crate::shared::BinEntry;
+use std::{
+    fs,
+    thread::{self, JoinHandle},
+};
 
 pub fn spawn_dispatcher(
-    result: Vec<PathBuf>,
-    tx: Sender<Vec<BinEntry>>,
-) -> std::thread::JoinHandle<Result<()>> {
-    std::thread::spawn(move || -> Result<()> {
+    indir: PathBuf,
+    tx_file: Sender<PathBuf>,
+) -> JoinHandle<Result<()>> {
+    thread::spawn(move || -> Result<()> {
+        for entry in fs::read_dir(indir)? {
+            let entry = entry?;
+            let path = entry.path();
 
-        
-
-        let mut len_buf: [u8; 4] = [0u8; 4];
-
-        let mut entry_buf: Vec<u8> = Vec::new();
-        
-        for path in result {
-            let entries = read_entries_binary(&path, &mut len_buf, &mut entry_buf)
-                .with_context(|| format!("failed to read entries from {}", path.display()))?;
-
-            tx.send(entries).context("failed to send decoded entries")?;
+            if path.is_file() {
+                tx_file.send(path)?;
+            }
         }
 
         Ok(())

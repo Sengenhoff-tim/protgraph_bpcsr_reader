@@ -1,7 +1,6 @@
 use std::{
     fs::{File, create_dir_all},
     io::{BufReader, BufWriter},
-    path::PathBuf,
 };
 
 use anyhow::{Context, Result, anyhow};
@@ -16,20 +15,20 @@ use crate::{
         },
         utilities::traversal_job::{TraversalJob, TraversalWorkerResult},
     },
-    shared::BinEntry,
+    shared::EntryBuffer,
 };
 
-const GB: u64 = 1024 * 1024 * 1024;
+const GIB: u64 = 1024 * 1024 * 1024;
 const LOG_FILE_NAME: &str = "logs.csv";
 
 /// main graph processing workflow
-pub fn process_graphs(config: Config) -> Result<Vec<PathBuf>> {
+pub fn process_graphs(config: Config) -> Result<()> {
     // create output directory
     let cli = &config.cli;
 
     let ch_graph_in_size = cli.ch_proc_in_size.unwrap_or(2);
     let ch_graph_query_size = cli.ch_proc_query_size.unwrap_or(cli.avail_processors * 2);
-    let ch_bin_out_size = cli.ch_proc_out_size.unwrap_or(cli.avail_processors * 2);
+    let ch_proc_out_size = cli.ch_proc_out_size.unwrap_or(cli.avail_processors * 2);
 
     let out_dir = &cli.outdir_path;
 
@@ -41,25 +40,36 @@ pub fn process_graphs(config: Config) -> Result<Vec<PathBuf>> {
 
     //channels
     let (tx_graphs, rx_graphs) = bounded::<ProteinGraph>(ch_graph_in_size);
+
     let (tx_jobs, rx_jobs) = bounded::<TraversalJob>(ch_graph_query_size);
-    let (tx_entry, rx_entry) = bounded::<BinEntry>(ch_bin_out_size);
     let (tx_worker_results, rx_worker_results) = unbounded::<TraversalWorkerResult>();
+
+    let (tx_result_buffer_empty, rx_result_buffer_empty) = bounded::<EntryBuffer>(ch_proc_out_size);
+    let (tx_result_buffer_full, rx_result_buffer_full) = unbounded::<EntryBuffer>();
 
     // setup graph reader
     let graph = File::open(&cli.graph_input_path)?;
     let reader_for_graph = BufReader::new(graph);
 
+    let batch_target_size = (cli.avail_memory as u64 * GIB * 1 / 10 / ch_proc_out_size as u64) as usize;
+
+    for _ in 0..ch_proc_out_size {
+        tx_result_buffer_empty.send(EntryBuffer::with_capacity(batch_target_size))?;
+    }
+
     // spawn tmp file writer
     let bin_writer_handle =
-        spawn_writer_manager(out_dir, cli.hash_bits, cli.max_handles, rx_entry)?;
+        spawn_writer_manager(rx_result_buffer_full, tx_result_buffer_empty, out_dir, cli.hash_bits, cli.max_handles)?;
 
     let worker_handles = spawn_workers(
         rx_jobs,
-        tx_entry,
         tx_worker_results,
+        rx_result_buffer_empty,
+        tx_result_buffer_full,
+        batch_target_size,
         cli.avail_processors,
         cli.max_vars,
-        (cli.avail_memory as u64 * GB * 7 / 10 / cli.avail_processors as u64) as usize,
+        (cli.avail_memory as u64 * GIB * 7 / 10 / cli.avail_processors as u64) as usize,
     )?;
 
     let graph_handle = spawn_graph_dispatcher(
@@ -91,10 +101,10 @@ pub fn process_graphs(config: Config) -> Result<Vec<PathBuf>> {
             .with_context(|| "worker thread failed")?;
     }
 
-    let result = bin_writer_handle
+    bin_writer_handle
         .join()
         .map_err(|e| anyhow!("bin writer thread panicked: {:?}", e))?
         .context("bin writer thread failed")?;
 
-    Ok(result)
+    Ok(())
 }

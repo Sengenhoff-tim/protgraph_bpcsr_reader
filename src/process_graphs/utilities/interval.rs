@@ -34,7 +34,7 @@ impl Interval {
         self
     }
 
-    pub fn validate(&self) -> Result<Self> {
+    pub fn validate(&self) -> Result<&Self> {
         if self.lower > self.upper {
             bail!(
                 "Invalid interval: lower ({}) > upper ({})",
@@ -42,7 +42,7 @@ impl Interval {
                 self.upper
             );
         }
-        Ok(*self)
+        Ok(self)
     }
 
     /// Splits one interval to n roughly equal intervals. Used for job rescheduling.

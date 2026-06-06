@@ -10,12 +10,14 @@ use crate::process_graphs::{
         traversal_job::{TraversalJob, TraversalWorkerResult},
     },
 };
-use crate::shared::BinEntry;
+use crate::shared::EntryBuffer;
 
 pub fn spawn_workers(
     rx_jobs: Receiver<TraversalJob>,
-    tx_entry: Sender<BinEntry>,
     tx_worker_results: Sender<TraversalWorkerResult>,
+    rx_reuse: Receiver<EntryBuffer>,
+    tx_filled: Sender<EntryBuffer>,
+    batch_target_size: usize,
     num_threads: usize,
     max_vars: u8,
     limit: usize,
@@ -24,11 +26,12 @@ pub fn spawn_workers(
 
     for i in 0..num_threads {
         let rx_jobs = rx_jobs.clone();
-        let tx_entry = tx_entry.clone();
         let tx_worker_results = tx_worker_results.clone();
+        let rx_reuse = rx_reuse.clone();
+        let tx_filled = tx_filled.clone();
 
         let handle: JoinHandle<Result<()>> = thread::spawn(move || {
-            traversal_thread(i, rx_jobs, tx_entry, tx_worker_results, max_vars, limit)
+            traversal_thread(i, rx_jobs,tx_worker_results, rx_reuse, tx_filled, batch_target_size, max_vars, limit)
                 .with_context(|| format!("worker {i} died"))
         });
 
@@ -41,12 +44,18 @@ pub fn spawn_workers(
 fn traversal_thread(
     worker_id: usize,
     rx_jobs: Receiver<TraversalJob>,
-    tx_entry: Sender<BinEntry>,
     tx_worker_results: Sender<TraversalWorkerResult>,
+    rx_reuse: Receiver<EntryBuffer>,
+    tx_filled: Sender<EntryBuffer>,
+    batch_target_size: usize,
     max_vars: u8,
     limit: usize,
 ) -> Result<()> {
     let mut traversal_state = SubgraphForQuery::new(limit);
+
+    let mut batch_buffer = rx_reuse.recv()?;
+
+    let mut qualifier_buffer = String::new();
 
     for job in rx_jobs {
         match job
@@ -67,8 +76,13 @@ fn traversal_thread(
                 for &state_id in final_states {
                     let trace = traversal_state.reconstruct_trace(state_id);
 
-                    if let Ok(Some(entry)) = job.graph.meta_data.build_peptide(&trace) {
-                        let _ = tx_entry.send(entry);
+                    qualifier_buffer.clear();
+
+                    job.graph.meta_data.build_peptide(&trace, &mut batch_buffer.data, &mut qualifier_buffer)?;
+
+                    if batch_buffer.data.len() >= batch_target_size {
+                        tx_filled.send(batch_buffer)?;
+                        batch_buffer = rx_reuse.recv()?;
                     }
                 }
 
@@ -80,5 +94,10 @@ fn traversal_thread(
             }
         }
     }
+
+    if !batch_buffer.data.is_empty() {
+        tx_filled.send(batch_buffer)?;
+    }
+
     Ok(())
 }

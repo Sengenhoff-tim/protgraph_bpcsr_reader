@@ -2,43 +2,78 @@ use std::io::Write;
 
 use anyhow::Result;
 
-use crate::shared::BinEntryMeta;
+pub fn write_sequences<W: Write>(
+    writer: &mut W,
+    id: u128,
+    sequence: &[u8],
+) -> Result<()> {
+    writeln!(writer, ">pg|{}", id)?;
 
-pub fn write_sequences<W: Write>(writer: &mut W, id: usize, sequence: &str) -> Result<()> {
-    writeln!(writer, ">pg|{}\n{}", id, insert_newlines(sequence))?;
-    Ok(())
-}
-
-pub fn write_meta<W: Write>(writer: &mut W, id: usize, metas: &[BinEntryMeta]) -> Result<()> {
-    for meta in metas {
-        let spos = meta
-            .spos
-            .map(|v| v.to_string())
-            .unwrap_or_else(|| "?".to_string());
-        let epos = meta
-            .epos
-            .map(|v| v.to_string())
-            .unwrap_or_else(|| "?".to_string());
-        let qualifiers = meta.qualifiers.replace(",", "|");
-        writeln!(
-            writer,
-            "{},{},{},{},{},[{}]",
-            id, meta.acc, spos, epos, meta.mssclvg, qualifiers
-        )?;
+    for chunk in sequence.chunks(60) {
+        writer.write_all(chunk)?;
+        writer.write_all(b"\n")?;
     }
+
     Ok(())
 }
 
-fn insert_newlines(s: &str) -> String {
-    let mut result = String::new();
-    let chars: Vec<char> = s.chars().collect();
+pub fn write_meta<W: Write>(
+    writer: &mut W,
+    id: u128,
+    meta: &[u8],
+) -> Result<()> {
+    let mut pos = 0;
 
-    for (i, chunk) in chars.chunks(60).enumerate() {
-        if i > 0 {
-            result.push('\n');
+    let acc_len =
+        u32::from_le_bytes(meta[pos..pos + 4].try_into().unwrap()) as usize;
+    pos += 4;
+
+    let accession = &meta[pos..pos + acc_len];
+    pos += acc_len;
+
+    let qual_len =
+        u32::from_le_bytes(meta[pos..pos + 4].try_into().unwrap()) as usize;
+    pos += 4;
+
+    let qualifiers = &meta[pos..pos + qual_len];
+    pos += qual_len;
+
+    let spos =
+        u16::from_le_bytes(meta[pos..pos + 2].try_into().unwrap());
+    pos += 2;
+
+    let epos =
+        u16::from_le_bytes(meta[pos..pos + 2].try_into().unwrap());
+    pos += 2;
+
+    let mssclvg =
+        u32::from_le_bytes(meta[pos..pos + 4].try_into().unwrap());
+
+    write!(writer, "{},", id)?;
+    writer.write_all(accession)?;
+    write!(writer, ",")?;
+
+    match spos {
+        u16::MAX => write!(writer, "?,")?,
+        v => write!(writer, "{},", v)?,
+    }
+
+    match epos {
+        u16::MAX => write!(writer, "?,")?,
+        v => write!(writer, "{},", v)?,
+    }
+
+    write!(writer, "{},[", mssclvg)?;
+
+    for &b in qualifiers {
+        if b == b',' {
+            writer.write_all(b"|")?;
+        } else {
+            writer.write_all(&[b])?;
         }
-        result.extend(chunk);
     }
 
-    result
+    writeln!(writer, "]")?;
+
+    Ok(())
 }
