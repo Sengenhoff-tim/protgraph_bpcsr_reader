@@ -41,12 +41,12 @@ impl TraversalData {
                 continue;
             }
 
-            let current_states = traversal_state.states_at_node[node_idx].clone();
+            let current_states = std::mem::take(&mut traversal_state.states_at_node[node_idx]);
 
             for state_id in current_states {
-                let state = traversal_state.arena[state_id].clone();
-                let tv = state.tv;
-                let var = state.var;
+
+                let tv = traversal_state.arena[state_id].tv;
+                let var = traversal_state.arena[state_id].var;
 
                 for edge_idx in edge_begin..edge_end {
                     let new_var = var + self.variant_count[edge_idx];
@@ -90,7 +90,21 @@ impl TraversalData {
             Some(s) => s,
             None => return false,
         };
+        /* 
+        let len = slice.len();
+        let ptr = slice.as_ptr();
 
+        for i in 0..len {
+            let iv = unsafe { &*ptr.add(i) };
+
+            if iv.lower > upper {
+                break;
+            }
+            if iv.upper >= lower {
+                return true;
+            }
+        }
+        */
         let mut i = 0;
         while i < slice.len() {
             let iv = unsafe { slice.get_unchecked(i) };
@@ -99,7 +113,7 @@ impl TraversalData {
                 break;
             }
 
-            if iv.lower <= upper && iv.upper >= lower {
+            if iv.upper >= lower {
                 return true;
             }
 
