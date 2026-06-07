@@ -12,7 +12,7 @@ use crate::shared::EntryBuffer;
 const OUT_FASTA_FILE: &str = "peptides.fasta";
 const OUT_METADATA_FILE: &str = "metadata.csv";
 
-const META_HEADER_LINE: &str = "ID,ACC,QUALIFIERS,STARTPOS,ENDPOS,MISSCLEAVAGE";
+const META_HEADER_LINE: &str = "ID,ACC,STARTPOS,ENDPOS,MISSCLEAVAGE,QUALIFIERS";
 
 fn get_filename(base: &str, zip: bool) -> String {
     if zip {

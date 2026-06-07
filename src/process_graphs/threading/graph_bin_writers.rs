@@ -73,7 +73,7 @@ fn writer_manager_thread(
 
         //TODO add graceful exit strategy
         if tx_result_buffer_empty.send(entry_buff).is_err() {
-            return Ok(());
+            continue;
         }
     }
 
