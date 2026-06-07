@@ -92,7 +92,7 @@ impl MetaData {
         entry_buffer.extend_from_slice(&epos.to_le_bytes());
         entry_buffer.extend_from_slice(&fwd_res.mssclvg.to_le_bytes());
 
-        let record_len = (entry_buffer.len() - 4) as u32;
+        let record_len = (entry_buffer.len() - record_start - 4) as u32;
 
         entry_buffer[record_start..record_start+4].copy_from_slice(&record_len.to_le_bytes());
 
