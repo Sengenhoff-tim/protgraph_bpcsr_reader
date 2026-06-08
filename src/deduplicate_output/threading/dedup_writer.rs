@@ -76,9 +76,7 @@ pub fn spawn_writers(
 
                 //TODO add graceful exit
                 if tx_buffer_empty.send(result.buffer).is_err() {
-                    seq_writer.flush()?;
-                    meta_writer.flush()?;
-                    return Ok(());
+                    continue;
                 };
             }
 

@@ -129,24 +129,24 @@ pub struct Cli {
     // scheduling constraints
     #[arg(
         long = "interval_bin_length",
-        value_name = "U16",
-        default_value_t = 100,
+        value_name = "F64",
+        default_value_t = 100.0,
         help = "Interval bin size in Da. Smaller bins = less memory required, less frequent job splits, but more overhead."
     )]
-    pub interval_bin_size: u16,
+    pub interval_bin_size: f64,
 
     #[arg(
         long = "job_splits",
-        value_name = "U8",
+        value_name = "U64",
         default_value_t = 16,
         help = "Number of sub-jobs created per split when memory limit reached."
     )]
-    pub job_splits: u8,
+    pub job_splits: u64,
 
     #[arg(
         long = "split_depth",
         value_name = "U8",
-        default_value_t = 5,
+        default_value_t = 3,
         help = "Maximum times a job can be recursively split (increases exponentially; failed jobs saved to 'logs.csv')."
     )]
     pub job_split_depth: u8,

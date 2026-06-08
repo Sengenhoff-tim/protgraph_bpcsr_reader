@@ -15,6 +15,7 @@ impl Config {
     pub fn new() -> Result<Config> {
         let cli = Cli::parse();
 
+        /* 
         if let Some(result) = (cli.job_splits as i64).checked_pow(cli.job_split_depth as u32) {
             if result > WEIGHT_FACTOR {
                 bail!(
@@ -27,6 +28,7 @@ impl Config {
         } else {
             bail!("Job splits calculation overflowed")
         }
+        */
 
         // queries are read from query input csv in Da
         let intervals = read_query_csv(
@@ -36,7 +38,7 @@ impl Config {
         )?;
 
         // intervals are split into bins and converted for internal representation
-        let chunked = intervals.to_chunks((cli.interval_bin_size as i64) * WEIGHT_FACTOR)?; // cannot overflow
+        let chunked = intervals.to_chunks((cli.interval_bin_size * WEIGHT_FACTOR as f64) as i64)?;
 
         Ok(Config {
             cli,
