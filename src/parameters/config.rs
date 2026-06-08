@@ -1,4 +1,6 @@
-use anyhow::{Result, bail};
+use anyhow::{Result, 
+    /*bail*/
+};
 use clap::Parser;
 
 use crate::parameters::Cli;
