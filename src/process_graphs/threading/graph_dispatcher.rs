@@ -30,10 +30,10 @@ pub fn spawn_graph_dispatcher(
             let graph = Arc::new(graph);
 
             writeln!(
-                    log_writer,
-                    "{},Traversal started",
-                    graph.meta_data.accessions[0]
-                )?;
+                log_writer,
+                "{},Traversal started",
+                graph.meta_data.accessions[0]
+            )?;
 
             for interval in intervals.iter().cloned() {
                 while let Ok(result) = rx_worker_results.try_recv() {
@@ -94,8 +94,6 @@ fn handle_worker_result(
 
             let new_depth = job.depth + 1;
 
-            
-
             if new_depth > job_split_depth {
                 writeln!(
                     log_writer,
@@ -103,7 +101,7 @@ fn handle_worker_result(
                     job.graph.meta_data.accessions[0], job.interval
                 )?;
 
-                return Ok(())
+                return Ok(());
             }
 
             let splits = job.interval.split_to_n(job_splits);
@@ -117,7 +115,6 @@ fn handle_worker_result(
 
                 return Ok(());
             }
-            
 
             for interval in &splits {
                 tx_jobs.send(TraversalJob {

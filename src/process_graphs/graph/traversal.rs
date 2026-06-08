@@ -44,7 +44,6 @@ impl TraversalData {
             let current_states = std::mem::take(&mut traversal_state.states_at_node[node_idx]);
 
             for state_id in current_states {
-
                 let tv = traversal_state.arena[state_id].tv;
                 let var = traversal_state.arena[state_id].var;
 
@@ -90,7 +89,7 @@ impl TraversalData {
             Some(s) => s,
             None => return false,
         };
-        /* 
+        /*
         let len = slice.len();
         let ptr = slice.as_ptr();
 

@@ -2,11 +2,7 @@ use std::io::Write;
 
 use anyhow::Result;
 
-pub fn write_sequences<W: Write>(
-    writer: &mut W,
-    id: u128,
-    sequence: &[u8],
-) -> Result<()> {
+pub fn write_sequences<W: Write>(writer: &mut W, id: u128, sequence: &[u8]) -> Result<()> {
     writeln!(writer, ">pg|{}", id)?;
 
     for chunk in sequence.chunks(60) {
@@ -17,37 +13,28 @@ pub fn write_sequences<W: Write>(
     Ok(())
 }
 
-pub fn write_meta<W: Write>(
-    writer: &mut W,
-    id: u128,
-    meta: &[u8],
-) -> Result<()> {
+pub fn write_meta<W: Write>(writer: &mut W, id: u128, meta: &[u8]) -> Result<()> {
     let mut pos = 0;
 
-    let acc_len =
-        u32::from_le_bytes(meta[pos..pos + 4].try_into().unwrap()) as usize;
+    let acc_len = u32::from_le_bytes(meta[pos..pos + 4].try_into().unwrap()) as usize;
     pos += 4;
 
     let accession = &meta[pos..pos + acc_len];
     pos += acc_len;
 
-    let qual_len =
-        u32::from_le_bytes(meta[pos..pos + 4].try_into().unwrap()) as usize;
+    let qual_len = u32::from_le_bytes(meta[pos..pos + 4].try_into().unwrap()) as usize;
     pos += 4;
 
     let qualifiers = &meta[pos..pos + qual_len];
     pos += qual_len;
 
-    let spos =
-        u16::from_le_bytes(meta[pos..pos + 2].try_into().unwrap());
+    let spos = u16::from_le_bytes(meta[pos..pos + 2].try_into().unwrap());
     pos += 2;
 
-    let epos =
-        u16::from_le_bytes(meta[pos..pos + 2].try_into().unwrap());
+    let epos = u16::from_le_bytes(meta[pos..pos + 2].try_into().unwrap());
     pos += 2;
 
-    let mssclvg =
-        u32::from_le_bytes(meta[pos..pos + 4].try_into().unwrap());
+    let mssclvg = u32::from_le_bytes(meta[pos..pos + 4].try_into().unwrap());
 
     write!(writer, "{},", id)?;
     writer.write_all(accession)?;

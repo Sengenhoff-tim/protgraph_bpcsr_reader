@@ -51,15 +51,21 @@ pub fn process_graphs(config: Config) -> Result<()> {
     let graph = File::open(&cli.graph_input_path)?;
     let reader_for_graph = BufReader::new(graph);
 
-    let batch_target_size = (cli.avail_memory as u64 * GIB * 1 / 10 / ch_proc_out_size as u64) as usize;
+    let batch_target_size =
+        ((cli.avail_memory as u64 * GIB) / 10 / ch_proc_out_size as u64) as usize;
 
     for _ in 0..ch_proc_out_size {
         tx_result_buffer_empty.send(EntryBuffer::with_capacity(batch_target_size))?;
     }
 
     // spawn tmp file writer
-    let bin_writer_handle =
-        spawn_writer_manager(rx_result_buffer_full, tx_result_buffer_empty, out_dir, cli.hash_bits, cli.max_handles)?;
+    let bin_writer_handle = spawn_writer_manager(
+        rx_result_buffer_full,
+        tx_result_buffer_empty,
+        out_dir,
+        cli.hash_bits,
+        cli.max_handles,
+    )?;
 
     let worker_handles = spawn_workers(
         rx_jobs,

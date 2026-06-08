@@ -1,4 +1,4 @@
-use anyhow::{Result,bail};
+use anyhow::{Result, bail};
 use serde::Deserialize;
 
 // A helper struct for intervals of protein weights. Inclusive on both ends: [lower, upper]
@@ -16,19 +16,19 @@ impl Interval {
         self.lower <= other.upper && other.lower <= self.upper
     }
 
-    pub fn apply_weight_factor(&mut self) -> &mut Self{
+    pub fn apply_weight_factor(&mut self) -> &mut Self {
         self.lower *= WEIGHT_FACTOR;
         self.upper *= WEIGHT_FACTOR;
         self
     }
 
-    pub fn merge_with(&mut self, other: &Interval) -> &mut Self{
+    pub fn merge_with(&mut self, other: &Interval) -> &mut Self {
         self.lower = self.lower.min(other.lower);
         self.upper = self.upper.max(other.upper);
         self
     }
 
-    pub fn clamp(&mut self, min: i64, max: i64) -> &mut Self{
+    pub fn clamp(&mut self, min: i64, max: i64) -> &mut Self {
         self.lower = self.lower.clamp(min, max);
         self.upper = self.upper.clamp(min, max);
         self
@@ -109,7 +109,6 @@ impl std::fmt::Display for Interval {
         )
     }
 }
-
 
 pub trait IntervalVecExt {
     fn to_chunks(self, chunk_size: i64) -> Result<Vec<Interval>>;

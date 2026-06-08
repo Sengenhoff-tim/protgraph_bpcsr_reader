@@ -36,7 +36,7 @@ fn main() -> Result<()> {
         memory as u64,
         &outdir_path,
         outdir_path.join("tmp"),
-        zip
+        zip,
     )?;
 
     Ok(())

@@ -1,4 +1,5 @@
-use anyhow::{Result, 
+use anyhow::{
+    Result,
     /*bail*/
 };
 use clap::Parser;
@@ -17,7 +18,7 @@ impl Config {
     pub fn new() -> Result<Config> {
         let cli = Cli::parse();
 
-        /* 
+        /*
         if let Some(result) = (cli.job_splits as i64).checked_pow(cli.job_split_depth as u32) {
             if result > WEIGHT_FACTOR {
                 bail!(
@@ -33,11 +34,7 @@ impl Config {
         */
 
         // queries are read from query input csv in Da
-        let intervals = read_query_csv(
-            &cli.query_input_path,
-            cli.lower_bound,
-            cli.upper_bound,
-        )?;
+        let intervals = read_query_csv(&cli.query_input_path, cli.lower_bound, cli.upper_bound)?;
 
         // intervals are split into bins and converted for internal representation
         let chunked = intervals.to_chunks((cli.interval_bin_size * WEIGHT_FACTOR as f64) as i64)?;

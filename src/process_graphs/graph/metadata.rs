@@ -32,11 +32,16 @@ struct ForwardPass {
 
 impl MetaData {
     /// builds entry from trace
-    pub fn build_peptide(&self, trace: &[(u32, Option<u32>)], entry_buffer: &mut Vec<u8>, qualifier_buffer: &mut String) -> Result<()> {
+    pub fn build_peptide(
+        &self,
+        trace: &[(u32, Option<u32>)],
+        entry_buffer: &mut Vec<u8>,
+        qualifier_buffer: &mut String,
+    ) -> Result<()> {
         let trace_len = trace.len();
 
         if trace_len < 2 {
-            return Ok(())
+            return Ok(());
         }
 
         let record_start = entry_buffer.len();
@@ -68,12 +73,12 @@ impl MetaData {
 
         let qualifiers_str = qualifier_buffer
             .strip_suffix(',')
-            .unwrap_or(&qualifier_buffer);
+            .unwrap_or(qualifier_buffer);
 
         entry_buffer.extend_from_slice(&(qualifiers_str.len() as u32).to_le_bytes());
         entry_buffer.extend_from_slice(qualifiers_str.as_bytes());
 
-        let mut epos= u16::MAX;
+        let mut epos = u16::MAX;
 
         if let Some((node_idx, seq_len)) = fwd_res.last_node_idx {
             let iso_pos = self.iso_position[node_idx];
@@ -94,14 +99,19 @@ impl MetaData {
 
         let record_len = (entry_buffer.len() - record_start - 4) as u32;
 
-        entry_buffer[record_start..record_start+4].copy_from_slice(&record_len.to_le_bytes());
+        entry_buffer[record_start..record_start + 4].copy_from_slice(&record_len.to_le_bytes());
 
         Ok(())
     }
 
     /// helper function, builds seq and collects mssclvg, idx for accession
-    fn forward_pass(&self, trace: &[(u32, Option<u32>)], entry_buffer: &mut Vec<u8>, qualifier_buffer: &mut String, trace_len: usize) -> Result<ForwardPass> {
-
+    fn forward_pass(
+        &self,
+        trace: &[(u32, Option<u32>)],
+        entry_buffer: &mut Vec<u8>,
+        qualifier_buffer: &mut String,
+        trace_len: usize,
+    ) -> Result<ForwardPass> {
         let seq_len_pos = entry_buffer.len();
 
         entry_buffer.extend_from_slice(&[0u8; 4]);
@@ -119,7 +129,7 @@ impl MetaData {
             let node_idx = node as usize;
 
             let seq = self.sequences.get_slice(node_idx);
-            
+
             entry_buffer.extend_from_slice(seq);
 
             if !spos_retrieved {
@@ -156,8 +166,7 @@ impl MetaData {
 
         let seq_len = (entry_buffer.len() - seq_len_pos - 4) as u32;
 
-        entry_buffer[seq_len_pos..seq_len_pos+4]
-            .copy_from_slice(&seq_len.to_le_bytes());
+        entry_buffer[seq_len_pos..seq_len_pos + 4].copy_from_slice(&seq_len.to_le_bytes());
 
         Ok(ForwardPass {
             iso_idx,

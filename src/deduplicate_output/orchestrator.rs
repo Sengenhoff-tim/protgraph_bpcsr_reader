@@ -1,11 +1,11 @@
 use anyhow::{Result, anyhow, bail};
 use crossbeam_channel::{bounded, unbounded};
+use std::fs::read_dir;
 use std::path::{Path, PathBuf};
-use std::fs::{read_dir};
 
 use crate::deduplicate_output::threading::dedup_workers::WorkerResult;
 use crate::deduplicate_output::threading::{spawn_dispatcher, spawn_worker, spawn_writers};
-use crate::shared::{EntryBuffer};
+use crate::shared::EntryBuffer;
 
 const GIB: u64 = 1024 * 1024 * 1024;
 
@@ -16,10 +16,9 @@ pub fn dedup_bin_files(
     indir: PathBuf,
     zip: bool,
 ) -> Result<()> {
-
     let max_file_size = max_file_size(&indir)?;
 
-    let mem_in_gib = avail_memory*GIB;
+    let mem_in_gib = avail_memory * GIB;
 
     let memory_budget_entry = mem_in_gib * 70 / 100;
 
@@ -31,7 +30,7 @@ pub fn dedup_bin_files(
         );
     }
 
-    let channel_bin_input = (memory_budget_entry / max_file_size).min(num_threads*2);
+    let channel_bin_input = (memory_budget_entry / max_file_size).min(num_threads * 2);
 
     let worker_thread_count = num_threads.min(channel_bin_input);
 

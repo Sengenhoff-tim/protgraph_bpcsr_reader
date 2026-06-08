@@ -9,13 +9,13 @@ pub struct EntryRef {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct SeqRef{
+pub struct SeqRef {
     pub start: u64,
     pub len: u32,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct MetaRef{
+pub struct MetaRef {
     pub start: u64,
     pub len: u32,
 }
@@ -35,11 +35,7 @@ impl EntryRef {
 
         let mut pos = entry_start + 4;
 
-        let seq_len = u32::from_le_bytes(
-            buffer.data[pos..pos + 4]
-                .try_into()
-                .unwrap(),
-        ) as usize;
+        let seq_len = u32::from_le_bytes(buffer.data[pos..pos + 4].try_into().unwrap()) as usize;
 
         pos += 4;
 
@@ -53,11 +49,8 @@ impl EntryRef {
 
         let mut pos = entry_start + 4; // skip record_size
 
-        let seq_len = u32::from_le_bytes(
-            buffer[pos..pos + 4]
-                .try_into()
-                .expect("invalid entry"),
-        ) as usize;
+        let seq_len =
+            u32::from_le_bytes(buffer[pos..pos + 4].try_into().expect("invalid entry")) as usize;
 
         pos += 4;
 
@@ -131,11 +124,7 @@ impl<'a> Iterator for BinEntryIterator<'a> {
 
         let start = self.offset;
 
-        let record_size = u32::from_le_bytes(
-            self.data[start..start + 4]
-                .try_into()
-                .ok()?,
-        ) as usize;
+        let record_size = u32::from_le_bytes(self.data[start..start + 4].try_into().ok()?) as usize;
 
         let len = 4 + record_size;
 

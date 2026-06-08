@@ -31,8 +31,17 @@ pub fn spawn_workers(
         let tx_filled = tx_filled.clone();
 
         let handle: JoinHandle<Result<()>> = thread::spawn(move || {
-            traversal_thread(i, rx_jobs,tx_worker_results, rx_reuse, tx_filled, batch_target_size, max_vars, limit)
-                .with_context(|| format!("worker {i} died"))
+            traversal_thread(
+                i,
+                rx_jobs,
+                tx_worker_results,
+                rx_reuse,
+                tx_filled,
+                batch_target_size,
+                max_vars,
+                limit,
+            )
+            .with_context(|| format!("worker {i} died"))
         });
 
         handles.push(handle);
@@ -78,7 +87,11 @@ fn traversal_thread(
 
                     qualifier_buffer.clear();
 
-                    job.graph.meta_data.build_peptide(&trace, &mut batch_buffer.data, &mut qualifier_buffer)?;
+                    job.graph.meta_data.build_peptide(
+                        &trace,
+                        &mut batch_buffer.data,
+                        &mut qualifier_buffer,
+                    )?;
 
                     if batch_buffer.data.len() >= batch_target_size {
                         tx_filled.send(batch_buffer)?;

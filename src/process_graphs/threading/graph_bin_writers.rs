@@ -11,9 +11,7 @@ use anyhow::{Context, Error, Result};
 use crossbeam_channel::{Receiver, Sender};
 use lru::LruCache;
 
-use crate::process_graphs::io::bin_writer::{
-    open_writer, resolve_path, write_entry_binary,
-};
+use crate::process_graphs::io::bin_writer::{open_writer, resolve_path, write_entry_binary};
 use crate::shared::EntryBuffer;
 
 pub fn spawn_writer_manager(
@@ -25,8 +23,15 @@ pub fn spawn_writer_manager(
 ) -> Result<JoinHandle<Result<(), Error>>> {
     let out_dir = out_dir.to_path_buf();
 
-    let handle =
-        thread::spawn(move || writer_manager_thread(rx_result_buffer_full, tx_result_buffer_empty, &out_dir, hash_bits, max_handles));
+    let handle = thread::spawn(move || {
+        writer_manager_thread(
+            rx_result_buffer_full,
+            tx_result_buffer_empty,
+            &out_dir,
+            hash_bits,
+            max_handles,
+        )
+    });
 
     Ok(handle)
 }
@@ -62,7 +67,13 @@ fn writer_manager_thread(
 
     while let Ok(mut entry_buff) = rx_result_buffer_full.recv() {
         for entry in entry_buff.iter() {
-            let path = resolve_path(entry.get_seq(&entry_buff), tmp_path, shard_mask, use_subdirs, &mut filenames);
+            let path = resolve_path(
+                entry.get_seq(&entry_buff),
+                tmp_path,
+                shard_mask,
+                use_subdirs,
+                &mut filenames,
+            );
 
             let writer = get_writer(&mut writers, &path).context("Failed to open shard file")?;
 

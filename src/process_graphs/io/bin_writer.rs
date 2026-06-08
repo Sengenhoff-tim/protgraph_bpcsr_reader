@@ -10,10 +10,7 @@ use xxhash_rust::xxh64::xxh64;
 
 const SEED: u64 = 0xC0111DE;
 
-pub fn write_entry_binary(
-    writer: &mut BufWriter<File>,
-    entry_bytes: &[u8],
-) -> Result<()> {
+pub fn write_entry_binary(writer: &mut BufWriter<File>, entry_bytes: &[u8]) -> Result<()> {
     writer.write_all(entry_bytes)?;
     Ok(())
 }

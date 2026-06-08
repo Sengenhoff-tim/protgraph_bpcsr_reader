@@ -1,6 +1,6 @@
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
-use anyhow::{Result};
+use anyhow::Result;
 use crossbeam_channel::Sender;
 
 use std::{
@@ -8,10 +8,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-pub fn spawn_dispatcher(
-    indir: PathBuf,
-    tx_file: Sender<PathBuf>,
-) -> JoinHandle<Result<()>> {
+pub fn spawn_dispatcher(indir: PathBuf, tx_file: Sender<PathBuf>) -> JoinHandle<Result<()>> {
     thread::spawn(move || -> Result<()> {
         for entry in fs::read_dir(indir)? {
             let entry = entry?;
