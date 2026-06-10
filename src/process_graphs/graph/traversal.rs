@@ -49,14 +49,15 @@ impl TraversalData {
                     (node.tv, node.cleaves, node.var)
                 };
 
-                for (index, &(edge_ft_count, edge_cleave, target)) in self.ft_clv_edge[edge_begin..edge_end].iter().enumerate() {
-                    
+                for (index, &(edge_ft_count, edge_cleave, target)) in
+                    self.ft_clv_edge[edge_begin..edge_end].iter().enumerate()
+                {
                     let cur_cleaves = cleaves + edge_cleave;
 
-                    if cleaves > max_cleaves{
+                    if cleaves > max_cleaves {
                         continue;
                     }
-                    
+
                     let cur_var = var + edge_ft_count;
                     if var > max_vars {
                         continue;

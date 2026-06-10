@@ -70,11 +70,12 @@ fn traversal_thread(
     let mut qualifier_buffer = String::new();
 
     for job in rx_jobs {
-        match job
-            .graph
-            .traversal_data
-            .traverse(job.interval, max_vars, max_cleaves, &mut traversal_state)
-        {
+        match job.graph.traversal_data.traverse(
+            job.interval,
+            max_vars,
+            max_cleaves,
+            &mut traversal_state,
+        ) {
             Ok(TraversalStatus::Overflow) => {
                 tx_worker_results
                     .send(TraversalWorkerResult::Reschedule(job))
