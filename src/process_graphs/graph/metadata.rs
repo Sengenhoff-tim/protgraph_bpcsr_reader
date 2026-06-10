@@ -8,7 +8,6 @@ pub struct MetaData {
     pub position: Box<[u16]>,
     pub iso_position: Box<[u16]>,
     pub iso_index: Box<[u8]>,
-    pub cleaved: Vec<bool>,
     pub sequences: StringTable,
     pub qualifiers: StringTable,
 }
@@ -16,7 +15,6 @@ pub struct MetaData {
 /// helper struct
 struct ForwardPass {
     iso_idx: u8,
-    mssclvg: u32,
     spos: u16,
     last_node_idx: Option<(usize, usize)>,
 }
@@ -35,6 +33,7 @@ impl MetaData {
     pub fn build_peptide(
         &self,
         trace: &[(u32, Option<u32>)],
+        cleaves: u16,
         entry_buffer: &mut Vec<u8>,
         qualifier_buffer: &mut String,
     ) -> Result<()> {
@@ -95,7 +94,7 @@ impl MetaData {
 
         entry_buffer.extend_from_slice(&fwd_res.spos.to_le_bytes());
         entry_buffer.extend_from_slice(&epos.to_le_bytes());
-        entry_buffer.extend_from_slice(&fwd_res.mssclvg.to_le_bytes());
+        entry_buffer.extend_from_slice(&cleaves.to_le_bytes());
 
         let record_len = (entry_buffer.len() - record_start - 4) as u32;
 
@@ -117,7 +116,6 @@ impl MetaData {
         entry_buffer.extend_from_slice(&[0u8; 4]);
 
         let mut iso_idx: u8 = 0;
-        let mut mssclvg: u32 = 0;
 
         let mut last_seq_node: Option<(usize, usize)> = None;
 
@@ -152,10 +150,6 @@ impl MetaData {
             iso_idx = iso_idx.max(self.iso_index[node_idx]);
 
             if let Some(e) = edge {
-                if self.cleaved[e as usize] {
-                    mssclvg += 1;
-                }
-
                 let q = self.qualifiers.get_str(e as usize);
                 if !q.is_empty() {
                     qualifier_buffer.push_str(q);
@@ -170,7 +164,6 @@ impl MetaData {
 
         Ok(ForwardPass {
             iso_idx,
-            mssclvg,
             spos,
             last_node_idx: last_seq_node,
         })

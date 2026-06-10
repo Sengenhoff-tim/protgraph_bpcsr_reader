@@ -5,9 +5,8 @@ use crate::process_graphs::utilities::{Interval, Pdbs, SubgraphForQuery};
 /// relevant information for traversal
 pub struct TraversalData {
     pub nodes: Box<[u32]>,
-    pub edges: Box<[u32]>,
     pub mono_weight: Box<[i64]>,
-    pub variant_count: Box<[u8]>,
+    pub ft_clv_edge: Box<[(u16, u16, u32)]>,
     pub pdbs: Pdbs,
 }
 
@@ -21,7 +20,8 @@ impl TraversalData {
     pub fn traverse(
         &self,
         interval: Interval,
-        max_vars: u8,
+        max_vars: u16,
+        max_cleaves: u16,
         traversal_state: &mut SubgraphForQuery,
     ) -> Result<TraversalStatus> {
         // clear subgraph
@@ -44,35 +44,41 @@ impl TraversalData {
             let current_states = std::mem::take(&mut traversal_state.states_at_node[node_idx]);
 
             for state_id in current_states {
-                let tv = traversal_state.arena[state_id].tv;
-                let var = traversal_state.arena[state_id].var;
+                let (tv, cleaves, var) = {
+                    let node = &traversal_state.arena[state_id];
+                    (node.tv, node.cleaves, node.var)
+                };
 
-                for edge_idx in edge_begin..edge_end {
-                    let new_var = var + self.variant_count[edge_idx];
+                for (index, &(edge_ft_count, edge_cleave, target)) in self.ft_clv_edge[edge_begin..edge_end].iter().enumerate() {
+                    
+                    let cur_cleaves = cleaves + edge_cleave;
 
-                    if new_var > max_vars {
+                    if cleaves > max_cleaves{
+                        continue;
+                    }
+                    
+                    let cur_var = var + edge_ft_count;
+                    if var > max_vars {
                         continue;
                     }
 
-                    let target_node = self.edges[edge_idx] as usize;
+                    let cur_tv = tv + self.mono_weight[target as usize];
 
-                    let achieved = tv + self.mono_weight[target_node];
+                    let lower = interval.lower - cur_tv;
+                    let upper = interval.upper - cur_tv;
 
-                    let lower = interval.lower - achieved;
-                    let upper = interval.upper - achieved;
-
-                    if !self.has_overlapping_interval(target_node, lower, upper) {
+                    if !self.has_overlapping_interval(target as usize, lower, upper) {
                         continue;
                     }
 
                     // If traversal state overflows 'limit', this returns 'overflow'.
                     if !traversal_state.push_state(
                         Some(state_id as u32),
-                        self.edges[edge_idx],
-                        edge_idx as u32,
-                        new_var,
-                        achieved,
-                        target_node,
+                        target,
+                        (edge_begin + index) as u32,
+                        cur_var,
+                        cur_cleaves,
+                        cur_tv,
                     ) {
                         return Ok(TraversalStatus::Overflow);
                     }
@@ -89,21 +95,7 @@ impl TraversalData {
             Some(s) => s,
             None => return false,
         };
-        /*
-        let len = slice.len();
-        let ptr = slice.as_ptr();
 
-        for i in 0..len {
-            let iv = unsafe { &*ptr.add(i) };
-
-            if iv.lower > upper {
-                break;
-            }
-            if iv.upper >= lower {
-                return true;
-            }
-        }
-        */
         let mut i = 0;
         while i < slice.len() {
             let iv = unsafe { slice.get_unchecked(i) };

@@ -40,7 +40,7 @@ pub struct Cli {
         default_value_t = 3,
         help = "Maximum variants per peptide. Defaults to 3. Increases results exponentially"
     )]
-    pub max_vars: u8,
+    pub max_vars: u16,
 
     #[arg(
         short = 'l',

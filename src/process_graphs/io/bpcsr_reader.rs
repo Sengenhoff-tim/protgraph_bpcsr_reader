@@ -78,12 +78,12 @@ pub fn read_single_graph<R: BufRead>(num_acc: u32, reader: &mut R) -> Result<Pro
     }
 
     // Cleaved (CL): n_edges bytes -> bool
-    let mut cleaved = vec![false; n_edges];
-    for item in cleaved.iter_mut().take(n_edges) {
-        *item = reader.read_u8().context(format!(
+    let mut cleaved = vec![0u16; n_edges];
+    for item in cleaved.iter_mut() {
+        *item = (reader.read_u8().context(format!(
             "reading cleaved for accession '{}'",
             primary_accession
-        ))? != 0;
+        ))? != 0) as u16;
     }
 
     let qualifiers = build_from_reader(reader, n_edges).context(format!(
@@ -92,7 +92,7 @@ pub fn read_single_graph<R: BufRead>(num_acc: u32, reader: &mut R) -> Result<Pro
     ))?;
 
     // Variant count (VC): n_edges u8
-    let variant_count = read_u8_vec(reader, n_edges).context(format!(
+    let ft_count = read_u8_vec(reader, n_edges).context(format!(
         "reading variant count for accession '{}'",
         primary_accession
     ))?;
@@ -103,12 +103,19 @@ pub fn read_single_graph<R: BufRead>(num_acc: u32, reader: &mut R) -> Result<Pro
         primary_accession
     ))?;
 
+    let ft_clv_edge: Box<[(u16, u16, u32)]> = ft_count
+        .iter()
+        .zip(cleaved.iter())
+        .zip(edges.iter())
+        .map(|((&vc, &cl), &ed)| (vc as u16, cl, ed))
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
+
     Ok(ProteinGraph {
         traversal_data: TraversalData {
             nodes: nodes.into_boxed_slice(),
-            edges: edges.into_boxed_slice(),
             mono_weight: mono_weight.into_boxed_slice(),
-            variant_count: variant_count.into_boxed_slice(),
+            ft_clv_edge,
             pdbs,
         },
         meta_data: MetaData {
@@ -116,7 +123,6 @@ pub fn read_single_graph<R: BufRead>(num_acc: u32, reader: &mut R) -> Result<Pro
             position: position.into_boxed_slice(),
             iso_index: iso_index.into_boxed_slice(),
             iso_position: iso_position.into_boxed_slice(),
-            cleaved,
             sequences,
             qualifiers,
         },

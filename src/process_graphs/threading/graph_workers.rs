@@ -19,7 +19,8 @@ pub fn spawn_workers(
     tx_filled: Sender<EntryBuffer>,
     batch_target_size: usize,
     num_threads: usize,
-    max_vars: u8,
+    max_vars: u16,
+    max_cleaves: u16,
     limit: usize,
 ) -> Result<Vec<JoinHandle<Result<()>>>> {
     let mut handles = Vec::with_capacity(num_threads);
@@ -39,6 +40,7 @@ pub fn spawn_workers(
                 tx_filled,
                 batch_target_size,
                 max_vars,
+                max_cleaves,
                 limit,
             )
             .with_context(|| format!("worker {i} died"))
@@ -57,7 +59,8 @@ fn traversal_thread(
     rx_reuse: Receiver<EntryBuffer>,
     tx_filled: Sender<EntryBuffer>,
     batch_target_size: usize,
-    max_vars: u8,
+    max_vars: u16,
+    max_cleaves: u16,
     limit: usize,
 ) -> Result<()> {
     let mut traversal_state = SubgraphForQuery::new(limit);
@@ -70,7 +73,7 @@ fn traversal_thread(
         match job
             .graph
             .traversal_data
-            .traverse(job.interval, max_vars, &mut traversal_state)
+            .traverse(job.interval, max_vars, max_cleaves, &mut traversal_state)
         {
             Ok(TraversalStatus::Overflow) => {
                 tx_worker_results
@@ -88,7 +91,8 @@ fn traversal_thread(
                     qualifier_buffer.clear();
 
                     job.graph.meta_data.build_peptide(
-                        &trace,
+                        &trace.0,
+                        trace.1,
                         &mut batch_buffer.data,
                         &mut qualifier_buffer,
                     )?;

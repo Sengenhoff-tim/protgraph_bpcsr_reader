@@ -4,7 +4,8 @@ pub struct State {
     pub parent: Option<u32>,
     pub node: u32,
     pub edge: Option<u32>,
-    pub var: u8,
+    pub var: u16,
+    pub cleaves: u16,
     pub tv: i64,
 }
 
@@ -29,20 +30,17 @@ impl SubgraphForQuery {
     }
 
     /// Reconstructs a single path starting from any node.
-    pub fn reconstruct_trace(&self, state_idx: usize) -> Vec<(u32, Option<u32>)> {
+    pub fn reconstruct_trace(&self, state_idx: usize) -> (Vec<(u32, Option<u32>)>, u16) {
         let mut trace = Vec::new();
         let mut state_id = Some(state_idx);
-
         while let Some(id) = state_id {
             let state = &self.arena[id];
-
             trace.push((state.node, state.edge));
-
             state_id = state.parent.map(|v| v as usize);
         }
-
+        let cleaves = self.arena[state_idx].cleaves;
         trace.reverse();
-        trace
+        (trace, cleaves)
     }
 
     /// Checks for memory overflow since traversal state grows exponentially.
@@ -52,9 +50,9 @@ impl SubgraphForQuery {
         parent: Option<u32>,
         node: u32,
         edge: u32,
-        var: u8,
+        var: u16,
+        cleaves: u16,
         tv: i64,
-        target_node: usize,
     ) -> bool {
         let len: usize = self.arena.len();
 
@@ -67,10 +65,11 @@ impl SubgraphForQuery {
             node,
             edge: Some(edge),
             var,
+            cleaves,
             tv,
         });
 
-        self.states_at_node[target_node].push(len);
+        self.states_at_node[node as usize].push(len);
 
         true
     }
@@ -88,6 +87,7 @@ impl SubgraphForQuery {
             node: 0,
             edge: None,
             var: 0,
+            cleaves: 0,
             tv: 0,
         });
 
