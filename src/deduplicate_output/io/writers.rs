@@ -34,7 +34,7 @@ pub fn write_meta<W: Write>(writer: &mut W, id: u128, meta: &[u8]) -> Result<()>
     let epos = u16::from_le_bytes(meta[pos..pos + 2].try_into().unwrap());
     pos += 2;
 
-    let mssclvg = u16::from_le_bytes(meta[pos..pos + 4].try_into().unwrap());
+    let mssclvg = u16::from_le_bytes(meta[pos..pos + 2].try_into().unwrap());
 
     write!(writer, "{},", id)?;
     writer.write_all(accession)?;
