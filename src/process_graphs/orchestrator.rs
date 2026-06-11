@@ -75,7 +75,7 @@ pub fn process_graphs(config: Config) -> Result<()> {
         batch_target_size,
         cli.avail_processors,
         cli.max_vars,
-        100,
+        cli.max_cleavages,
         (cli.avail_memory as u64 * GIB * 7 / 10 / cli.avail_processors as u64) as usize,
     )?;
 

@@ -36,11 +36,20 @@ pub struct Cli {
     #[arg(
         short = 'v',
         long = "max_vars",
-        value_name = "U8",
+        value_name = "U16",
         default_value_t = 3,
-        help = "Maximum variants per peptide. Defaults to 3. Increases results exponentially"
+        help = "Maximum variants per peptide. Defaults to 3."
     )]
     pub max_vars: u16,
+
+    #[arg(
+        short = 'c',
+        long = "max_cleavages",
+        value_name = "U16",
+        default_value_t = 3,
+        help = "Maximum missed cleavages per peptide. Defaults to 3."
+    )]
+    pub max_cleavages: u16,
 
     #[arg(
         short = 'l',
