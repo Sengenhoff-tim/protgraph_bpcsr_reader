@@ -26,7 +26,7 @@ struct ForwardPass {
 // - u32 qualifiers length + qualifiers bytes
 // - u16 start position; u16::MAX = None
 // - u16 end position; u16::MAX = None
-// - u32 miss-cleavage count
+// - u16 count of missed cleavages
 
 impl MetaData {
     /// builds entry from trace
