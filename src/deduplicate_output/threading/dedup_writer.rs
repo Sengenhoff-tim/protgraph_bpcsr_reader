@@ -66,7 +66,7 @@ pub fn spawn_writers(
 
             writeln!(meta_writer, "{}", META_HEADER_LINE)?;
 
-            let mut id: u128 = 1;
+            let mut id: u128 = 0;
 
             for mut result in rx_entry {
                 let buffer = &mut result.buffer;

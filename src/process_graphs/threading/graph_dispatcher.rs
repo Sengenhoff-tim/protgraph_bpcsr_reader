@@ -25,9 +25,12 @@ pub fn spawn_graph_dispatcher(
         let mut log_writer = log_writer;
         let mut outstanding = 0usize;
 
+        let mut total = 0;
+
         // initial submission
         for graph in rx_graphs {
             let graph = Arc::new(graph);
+            total+=1;
 
             writeln!(
                 log_writer,
@@ -70,6 +73,11 @@ pub fn spawn_graph_dispatcher(
                 job_split_depth,
             )?;
         }
+        writeln!(
+                log_writer,
+                "TOTAL,Wrote {} lines",
+                total
+            )?;
         Ok(())
     });
 
