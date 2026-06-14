@@ -75,7 +75,7 @@ pub fn spawn_graph_dispatcher(
         }
         writeln!(
                 log_writer,
-                "TOTAL,Wrote {} lines",
+                "FINISHED,Processed {} graphs",
                 total
             )?;
         Ok(())
