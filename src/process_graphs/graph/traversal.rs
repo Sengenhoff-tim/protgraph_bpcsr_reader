@@ -54,12 +54,12 @@ impl TraversalData {
                 {
                     let cur_cleaves = cleaves + edge_cleave;
 
-                    if cleaves > max_cleaves {
+                    if cur_cleaves > max_cleaves {
                         continue;
                     }
 
                     let cur_var = var + edge_ft_count;
-                    if var > max_vars {
+                    if cur_var > max_vars {
                         continue;
                     }
 
