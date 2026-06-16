@@ -52,12 +52,11 @@ pub fn write_meta<W: Write>(writer: &mut W, id: u128, meta: &[u8]) -> Result<()>
 
     write!(writer, "{},[", mssclvg)?;
 
-    for &b in qualifiers {
-        if b == b',' {
-            writer.write_all(b"|")?;
-        } else {
-            writer.write_all(&[b])?;
-        }
+    let mut first = true;
+    for part in qualifiers.split(|&b| b == b',') {
+        if !first { writer.write_all(b"|")?; }
+        writer.write_all(part)?;
+        first = false;
     }
 
     writeln!(writer, "]")?;
