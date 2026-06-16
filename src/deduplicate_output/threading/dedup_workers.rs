@@ -21,7 +21,6 @@ pub fn spawn_worker(
         for path in rx_paths {
             let mut buffer = rx_buffer_empty.recv()?;
 
-            buffer.data.clear();
             let mut file = std::fs::File::open(&path)?;
             file.read_to_end(&mut buffer.data)?;
 
@@ -34,6 +33,9 @@ pub fn spawn_worker(
     })
 }
 
+// Files are pre-partitioned by sequence hash, so duplicate sequences
+// always land in the same file. Within-file deduplication is therefore
+// globally complete.
 pub fn build_worker_result(buffer: EntryBuffer) -> WorkerResult {
     let mut map: HashMap<&[u8], (SeqRef, Vec<MetaRef>)> = HashMap::new();
 
