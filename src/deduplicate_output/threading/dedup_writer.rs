@@ -47,7 +47,7 @@ pub fn spawn_writers(
             }
             buffer.clear();
             if tx_buffer_empty.send(result.buffer).is_err() {
-                pool_error = true;
+                continue;
             }
         }
 
@@ -62,10 +62,6 @@ pub fn spawn_writers(
         // dropping tx_seq_chunk and tx_meta_chunk here signals compressors to finish
         drop(tx_seq_chunk);
         drop(tx_meta_chunk);
-
-        if pool_error {
-            anyhow::bail!("Buffer pool channel closed unexpectedly");
-        }
 
         Ok(())
     })
