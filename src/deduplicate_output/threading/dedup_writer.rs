@@ -26,7 +26,6 @@ pub fn spawn_writers(
         writeln!(meta_chunk.data, "{}", META_HEADER_LINE)?;
 
         let mut id: u128 = 0;
-        let mut pool_error = false;
 
         for mut result in rx_entry {
             let buffer = &mut result.buffer;
