@@ -21,7 +21,9 @@ pub fn spawn_compressor(
         for mut chunk in rx_chunk {
             writer.write_all(&chunk.data)?;
             chunk.clear();
-            tx_chunk_empty.send(chunk)?;
+            if tx_chunk_empty.send(chunk).is_err() {
+                continue;
+            }
         }
         writer.flush()?;
         let inner: WriterWrapper<File> = writer.into_inner().unwrap();
