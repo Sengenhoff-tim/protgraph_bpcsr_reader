@@ -30,7 +30,7 @@ pub fn spawn_graph_dispatcher(
         // initial submission
         for graph in rx_graphs {
             let graph = Arc::new(graph);
-            total+=1;
+            total += 1;
 
             writeln!(
                 log_writer,
@@ -73,11 +73,7 @@ pub fn spawn_graph_dispatcher(
                 job_split_depth,
             )?;
         }
-        writeln!(
-                log_writer,
-                "FINISHED,Processed {} graphs",
-                total
-            )?;
+        writeln!(log_writer, "FINISHED,Processed {} graphs", total)?;
         Ok(())
     });
 
