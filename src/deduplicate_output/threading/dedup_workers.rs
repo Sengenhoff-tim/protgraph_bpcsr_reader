@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, io::Read, path::PathBuf};
 
 use crate::shared::{
     EntryBuffer,
@@ -21,7 +21,9 @@ pub fn spawn_worker(
         for path in rx_paths {
             let mut buffer = rx_buffer_empty.recv()?;
 
-            buffer.data = std::fs::read(path)?;
+            buffer.data.clear();
+            let mut file = std::fs::File::open(&path)?;
+            file.read_to_end(&mut buffer.data)?;
 
             let result = build_worker_result(buffer);
 
