@@ -1,95 +1,72 @@
-use std::{
-    fs::{self, File},
-    io::{BufWriter, Write},
-    path::Path,
-    thread,
-};
-
+use std::{io::Write, thread};
 use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender};
-use flate2::{Compression, write::GzEncoder};
-
 use crate::deduplicate_output::{
-    io::{WriterWrapper, write_meta, write_sequences},
+    chunk_buffer::ChunkBuffer,
+    io::{write_meta, write_sequences},
     threading::dedup_workers::WorkerResult,
 };
 use crate::shared::EntryBuffer;
 
-const OUT_FASTA_FILE: &str = "peptides.fasta";
-const OUT_METADATA_FILE: &str = "metadata.csv";
-
 const META_HEADER_LINE: &str = "ID,ACC,STARTPOS,ENDPOS,MISSCLEAVAGE,QUALIFIERS";
-
-fn get_filename(base: &str, zip: bool) -> String {
-    if zip {
-        format!("{}.gz", base)
-    } else {
-        base.to_string()
-    }
-}
+const CHUNK_SIZE: usize = 256 * 1024;
 
 pub fn spawn_writers(
     rx_entry: Receiver<WorkerResult>,
     tx_buffer_empty: Sender<EntryBuffer>,
-    outdir: &Path,
-    zip: bool,
+    tx_seq_chunk: Sender<ChunkBuffer>,
+    tx_meta_chunk: Sender<ChunkBuffer>,
+    rx_seq_empty: Receiver<ChunkBuffer>,
+    rx_meta_empty: Receiver<ChunkBuffer>,
 ) -> thread::JoinHandle<Result<()>> {
-    thread::spawn({
-        let outdir = outdir.to_path_buf();
+    thread::spawn(move || -> Result<()> {
+        let mut seq_chunk = rx_seq_empty.recv()?;
+        let mut meta_chunk = rx_meta_empty.recv()?;
 
-        move || -> Result<()> {
-            fs::create_dir_all(&outdir)?;
+        writeln!(meta_chunk.data, "{}", META_HEADER_LINE)?;
 
-            let seq_filename = get_filename(OUT_FASTA_FILE, zip);
+        let mut id: u128 = 0;
+        let mut pool_error = false;
 
-            let seq_file = File::create(outdir.join(&seq_filename))?;
-
-            let seq_encoder = if zip {
-                WriterWrapper::Compressed(GzEncoder::new(seq_file, Compression::default()))
-            } else {
-                WriterWrapper::Uncompressed(seq_file)
-            };
-
-            let mut seq_writer = BufWriter::new(seq_encoder);
-
-            let meta_filename = get_filename(OUT_METADATA_FILE, zip);
-
-            let meta_file = File::create(outdir.join(&meta_filename))?;
-
-            let meta_encoder = if zip {
-                WriterWrapper::Compressed(GzEncoder::new(meta_file, Compression::default()))
-            } else {
-                WriterWrapper::Uncompressed(meta_file)
-            };
-
-            let mut meta_writer = BufWriter::new(meta_encoder);
-
-            writeln!(meta_writer, "{}", META_HEADER_LINE)?;
-
-            let mut id: u128 = 0;
-
-            for mut result in rx_entry {
-                let buffer = &mut result.buffer;
-
-                for (seq, metas) in result.groups {
-                    id += 1;
-                    write_sequences(&mut seq_writer, id, seq.get(buffer))?;
-                    for meta in metas {
-                        write_meta(&mut meta_writer, id, meta.get(buffer))?;
-                    }
+        for mut result in rx_entry {
+            let buffer = &mut result.buffer;
+            for (seq, metas) in result.groups {
+                id += 1;
+                write_sequences(&mut seq_chunk.data, id, seq.get(buffer))?;
+                for meta in metas {
+                    write_meta(&mut meta_chunk.data, id, meta.get(buffer))?;
                 }
-                buffer.clear();
-
-                //TODO add graceful exit
-                if tx_buffer_empty.send(result.buffer).is_err() {
-                    continue;
-                };
+                if seq_chunk.data.len() >= CHUNK_SIZE {
+                    tx_seq_chunk.send(seq_chunk)?;
+                    seq_chunk = rx_seq_empty.recv()?;
+                }
+                if meta_chunk.data.len() >= CHUNK_SIZE {
+                    tx_meta_chunk.send(meta_chunk)?;
+                    meta_chunk = rx_meta_empty.recv()?;
+                }
             }
-
-            seq_writer.flush()?;
-            meta_writer.flush()?;
-
-            Ok(())
+            buffer.clear();
+            if tx_buffer_empty.send(result.buffer).is_err() {
+                pool_error = true;
+            }
         }
+
+        // flush remaining
+        if !seq_chunk.data.is_empty() {
+            tx_seq_chunk.send(seq_chunk)?;
+        }
+        if !meta_chunk.data.is_empty() {
+            tx_meta_chunk.send(meta_chunk)?;
+        }
+
+        // dropping tx_seq_chunk and tx_meta_chunk here signals compressors to finish
+        drop(tx_seq_chunk);
+        drop(tx_meta_chunk);
+
+        if pool_error {
+            anyhow::bail!("Buffer pool channel closed unexpectedly");
+        }
+
+        Ok(())
     })
 }
