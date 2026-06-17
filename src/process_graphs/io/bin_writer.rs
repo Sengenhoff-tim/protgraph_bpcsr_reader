@@ -25,31 +25,22 @@ pub fn open_writer(path: &Path) -> Result<BufWriter<File>> {
     Ok(BufWriter::new(file))
 }
 
-/// Creates binary files with hash as filename. Optionally creates subdirs based on hash as well.
-pub fn shard_filename(out_dir: &Path, hash: u64, shard_id: usize, use_subdirs: bool) -> PathBuf {
+/// Creates binary files with hash as filename.
+pub fn shard_filename(out_dir: &Path, shard_id: usize) -> PathBuf {
     let filename = format!("{shard_id:05x}.bin");
-
-    if use_subdirs {
-        let dir = format!("{:02x}", (hash >> 56) & 0xff);
-
-        out_dir.join(dir).join(filename)
-    } else {
-        out_dir.join(filename)
-    }
+    out_dir.join(filename)
 }
 
 pub fn resolve_path(
     entry: &[u8],
     out_dir: &Path,
     shard_mask: usize,
-    use_subdirs: bool,
     filenames: &mut HashMap<usize, PathBuf>,
 ) -> PathBuf {
     let hash = xxh64(entry, SEED);
     let shard_id = (hash as usize) & shard_mask;
-
     filenames
         .entry(shard_id)
-        .or_insert_with(|| shard_filename(out_dir, hash, shard_id, use_subdirs))
+        .or_insert_with(|| shard_filename(out_dir, shard_id))
         .clone()
 }

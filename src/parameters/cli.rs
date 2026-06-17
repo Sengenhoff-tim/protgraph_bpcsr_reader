@@ -44,7 +44,7 @@ pub struct Cli {
 
     #[arg(
         short = 'c',
-        long = "max_cleavages",
+        long = "max_missed_cleavages",
         value_name = "U16",
         default_value_t = 3,
         help = "Maximum missed cleavages per peptide. Defaults to 3."

@@ -51,9 +51,6 @@ fn writer_manager_thread(
 
     let shard_mask = (1usize << h_bits) - 1;
 
-    // enable directory fanout once 256 shards are surpassed
-    let use_subdirs = h_bits > 8;
-
     // lru for file handles
     let mut writers: LruCache<PathBuf, BufWriter<File>> =
         LruCache::new(NonZeroUsize::new(max_h as usize).context("max_open_files must be > 0")?);
@@ -71,7 +68,6 @@ fn writer_manager_thread(
                 entry.get_seq(&entry_buff),
                 tmp_path,
                 shard_mask,
-                use_subdirs,
                 &mut filenames,
             );
 

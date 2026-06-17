@@ -30,6 +30,10 @@ pub fn dedup_bin_files(
             memory_budget_entry
         );
     }
+    if max_file_size == 0 {
+        eprintln!("Warning: No output was generated");
+        return Ok(());
+    }
 
     let channel_bin_input = (memory_budget_entry / max_file_size).min(num_threads * 2);
     let worker_thread_count = num_threads.min(channel_bin_input);
