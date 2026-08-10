@@ -31,16 +31,19 @@ fn main() -> Result<()> {
     process_graphs(config)?;
 
     // read intermediate files and write deduplicated output
-    if outdir_path.read_dir()
-        .map_err(|e| anyhow::anyhow!("Failed to read directory: {}", e))?
-        .next()
-        .is_some()
-    {
+    let tmp_path = outdir_path.join("tmp");
+
+    let has_input_files = tmp_path
+        .read_dir()
+        .map(|mut entries| entries.next().is_some())
+        .unwrap_or(false); // tmp doesn't exist -> treat as "no files"
+
+    if has_input_files {
         dedup_bin_files(
             avail_processors as u64,
             memory as u64,
             &outdir_path,
-            outdir_path.join("tmp"),
+            tmp_path,
             zip,
         )?;
     }
