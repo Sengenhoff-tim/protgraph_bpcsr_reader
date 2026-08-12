@@ -7,6 +7,9 @@ mod shared;
 
 use mimalloc::MiMalloc;
 
+#[cfg(test)]
+mod tests;
+
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 

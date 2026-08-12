@@ -1,6 +1,6 @@
 mod cli;
 mod config;
-mod io;
+pub(crate) mod io;
 
 pub use cli::Cli;
 pub use config::Config;

@@ -26,7 +26,7 @@ pub fn read_query_csv(path: &PathBuf, lower: i64, upper: i64) -> Result<Vec<Inte
                 upper: (raw.upper * WEIGHT_FACTOR as f64).round() as i64,
             };
 
-            interval.clamp(lower, upper);
+            interval.clamp(lower* WEIGHT_FACTOR, upper* WEIGHT_FACTOR);
 
             interval.validate()?;
 

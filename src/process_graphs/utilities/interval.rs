@@ -16,11 +16,13 @@ impl Interval {
         self.lower <= other.upper && other.lower <= self.upper
     }
 
+    /* 
     pub fn apply_weight_factor(&mut self) -> &mut Self {
         self.lower *= WEIGHT_FACTOR;
         self.upper *= WEIGHT_FACTOR;
         self
     }
+    */
 
     pub fn merge_with(&mut self, other: &Interval) -> &mut Self {
         self.lower = self.lower.min(other.lower);
