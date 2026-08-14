@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::process_graphs::utilities::StringTable;
+use crate::process_graphs::utilities::{StringTable, PathState};
 
 /// Struct containing all data not immediately relevant for traversal
 pub struct MetaData {
@@ -32,7 +32,7 @@ impl MetaData {
     /// builds entry from trace
     pub fn build_peptide(
         &self,
-        trace: &[(u32, Option<u32>)],
+        trace: &[PathState],
         cleaves: u16,
         entry_buffer: &mut Vec<u8>,
         qualifier_buffer: &mut String,
@@ -60,7 +60,7 @@ impl MetaData {
 
         // final edge
         if let Some(last) = trace.last()
-            && let Some(edge) = last.1
+            && let Some(edge) = last.edge
         {
             let q = self.qualifiers.get_str(edge as usize);
 
@@ -106,7 +106,7 @@ impl MetaData {
     /// helper function, builds seq and collects mssclvg, idx for accession
     fn forward_pass(
         &self,
-        trace: &[(u32, Option<u32>)],
+        trace: &[PathState],
         entry_buffer: &mut Vec<u8>,
         qualifier_buffer: &mut String,
         trace_len: usize,
@@ -123,7 +123,9 @@ impl MetaData {
 
         let mut spos = u16::MAX;
 
-        for &(node, edge) in &trace[1..trace_len - 1] {
+        for s in &trace[1..trace_len - 1] {
+            let node = s.node;
+            let edge = s.edge;
             let node_idx = node as usize;
 
             let seq = self.sequences.get_slice(node_idx);
