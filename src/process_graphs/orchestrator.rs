@@ -34,10 +34,6 @@ pub fn process_graphs(config: Config) -> Result<()> {
 
     create_dir_all(out_dir).with_context(|| format!("failed to create {}", out_dir.display()))?;
 
-    // set up log writer
-    let logs = File::create(out_dir.join(LOG_FILE_NAME))?;
-    let log_writer = BufWriter::new(logs);
-
     //channels
     let (tx_graphs, rx_graphs) = bounded::<ProteinGraph>(ch_graph_in_size);
 
@@ -84,7 +80,6 @@ pub fn process_graphs(config: Config) -> Result<()> {
         rx_worker_results,
         tx_jobs,
         config.intervals,
-        log_writer,
         cli.job_splits as usize,
         cli.job_split_depth as usize,
     )?;

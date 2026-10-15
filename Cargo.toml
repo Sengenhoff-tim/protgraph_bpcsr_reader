@@ -17,6 +17,9 @@ memmap2 = "0.9.10"
 nix = { version = "0.31.3", features = ["resource"] }
 flate2 = "1.0"
 mimalloc = { version = "*", features = ["v2"] }
+tracing = "0.1.44"
+tracing-subscriber = "0.3.23"
+tracing-appender = "0.2.5"
 
 [dev-dependencies]
 rand = "0.10.2"

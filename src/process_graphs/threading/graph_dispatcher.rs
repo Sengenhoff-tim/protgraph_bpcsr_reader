@@ -8,6 +8,7 @@ use std::{
 
 use anyhow::{Error, Result};
 use crossbeam_channel::{Receiver, Sender};
+use tracing::{info, warn};
 
 use crate::process_graphs::utilities::traversal_job::{TraversalJob, TraversalWorkerResult};
 use crate::process_graphs::{graph::ProteinGraph, utilities::Interval};
@@ -17,12 +18,10 @@ pub fn spawn_graph_dispatcher(
     rx_worker_results: Receiver<TraversalWorkerResult>,
     tx_jobs: Sender<TraversalJob>,
     intervals: Vec<Interval>,
-    log_writer: BufWriter<File>,
     job_splits: usize,
     job_split_depth: usize,
 ) -> Result<JoinHandle<Result<(), Error>>> {
     let handle = thread::spawn(move || -> Result<()> {
-        let mut log_writer = log_writer;
         let mut outstanding = 0usize;
 
         let mut total = 0;
@@ -32,11 +31,6 @@ pub fn spawn_graph_dispatcher(
             let graph = Arc::new(graph);
             total += 1;
 
-            writeln!(
-                log_writer,
-                "{},Traversal started",
-                graph.meta_data.accessions[0]
-            )?;
 
             for interval in intervals.iter().cloned() {
                 while let Ok(result) = rx_worker_results.try_recv() {
@@ -44,7 +38,6 @@ pub fn spawn_graph_dispatcher(
                         result,
                         &mut outstanding,
                         &tx_jobs,
-                        &mut log_writer,
                         job_splits,
                         job_split_depth,
                     )?;
@@ -68,12 +61,11 @@ pub fn spawn_graph_dispatcher(
                 result,
                 &mut outstanding,
                 &tx_jobs,
-                &mut log_writer,
                 job_splits,
                 job_split_depth,
             )?;
         }
-        writeln!(log_writer, "FINISHED,Processed {} graphs", total)?;
+        info!("FINISHED,Processed {} graphs", total);
         Ok(())
     });
 
@@ -84,7 +76,6 @@ fn handle_worker_result(
     result: TraversalWorkerResult,
     outstanding: &mut usize,
     tx_jobs: &Sender<TraversalJob>,
-    log_writer: &mut BufWriter<File>,
     job_splits: usize,
     job_split_depth: usize,
 ) -> anyhow::Result<()> {
@@ -99,23 +90,20 @@ fn handle_worker_result(
             let new_depth = job.depth + 1;
 
             if new_depth > job_split_depth {
-                writeln!(
-                    log_writer,
+                warn!(
                     "{},Incomplete traversal: split depth limit reached,{}",
                     job.graph.meta_data.accessions[0], job.interval
-                )?;
-
+                );
                 return Ok(());
             }
 
             let splits = job.interval.split_to_n(job_splits);
 
             if splits.len() == 1 {
-                writeln!(
-                    log_writer,
+                warn!(
                     "{},Incomplete traversal: No further splits possible,{}",
                     job.graph.meta_data.accessions[0], job.interval
-                )?;
+                );
 
                 return Ok(());
             }

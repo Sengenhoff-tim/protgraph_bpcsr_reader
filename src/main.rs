@@ -14,7 +14,10 @@ mod tests;
 static GLOBAL: MiMalloc = MiMalloc;
 
 use crate::{
-    deduplicate_output::dedup_bin_files, parameters::Config, process_graphs::process_graphs,
+    deduplicate_output::dedup_bin_files, 
+    parameters::Config, 
+    process_graphs::process_graphs,
+    shared::{init_logging, LoggingConfig}
 };
 
 /// Reads BPCSR files produced by ProtGraph and generates:
@@ -22,6 +25,8 @@ use crate::{
 /// - `metadata.csv`, describing which proteins generated each peptide
 /// - `log.csv`, containing run information
 fn main() -> Result<()> {
+    let _guard = init_logging(LoggingConfig::default())?;
+
     let config = Config::new()?;
 
     let avail_processors = config.cli.avail_processors;
@@ -39,7 +44,7 @@ fn main() -> Result<()> {
     let has_input_files = tmp_path
         .read_dir()
         .map(|mut entries| entries.next().is_some())
-        .unwrap_or(false); // tmp doesn't exist -> treat as "no files"
+        .unwrap_or(false);
 
     if has_input_files {
         dedup_bin_files(
