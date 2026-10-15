@@ -1,6 +1,6 @@
 use std::{
     fs::{File, create_dir_all},
-    io::{BufReader, BufWriter},
+    io::{BufReader}
 };
 
 use anyhow::{Context, Result, anyhow};
@@ -19,7 +19,6 @@ use crate::{
 };
 
 const GIB: u64 = 1024 * 1024 * 1024;
-const LOG_FILE_NAME: &str = "logs.csv";
 
 /// main graph processing workflow
 pub fn process_graphs(config: Config) -> Result<()> {

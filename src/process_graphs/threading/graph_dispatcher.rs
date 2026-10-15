@@ -1,6 +1,4 @@
 use std::{
-    fs::File,
-    io::{BufWriter, Write},
     sync::Arc,
     thread,
     thread::JoinHandle,
