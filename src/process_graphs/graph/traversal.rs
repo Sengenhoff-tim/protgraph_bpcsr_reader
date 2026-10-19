@@ -17,8 +17,7 @@ fn dfs(
     max_cleaves: u16,
     traversal_state: &mut TraversalState,
     on_complete: &mut impl FnMut(&[PathState], u16) -> Result<()>,
-    offload: &mut impl FnMut(&[PathState]) -> bool,
-    split_depth: usize,
+    offload: &mut impl FnMut(&[PathState]) -> bool
 ) -> Result<()> {
     let (node, tv, cleaves, var) = {
         let s = traversal_state.current();
@@ -70,12 +69,11 @@ fn dfs(
             cur_tv,
         );
 
-        let handed_off = traversal_state.path().len() <= split_depth
-            && offload(traversal_state.path());
+        let handed_off = offload(traversal_state.path());
 
         if !handed_off {
             dfs(data, intervals, max_vars, max_cleaves, traversal_state,
-                on_complete, offload, split_depth)?;
+                on_complete, offload)?;
         }
 
         traversal_state.pop_state();
@@ -121,10 +119,9 @@ impl TraversalData {
         max_cleaves: u16,
         traversal_state: &mut TraversalState,
         offload: &mut impl FnMut(&[PathState]) -> bool,
-        split_depth: usize,
         mut on_complete: impl FnMut(&[PathState], u16) -> Result<()>,
     ) -> Result<()> {
         dfs(self, intervals, max_vars, max_cleaves, traversal_state,
-            &mut on_complete, offload, split_depth)
+            &mut on_complete, offload)
     }
 }

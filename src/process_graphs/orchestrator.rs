@@ -5,7 +5,7 @@ use std::{
 use anyhow::{Context, Result, anyhow};
 use crossbeam_channel::{bounded, unbounded};
 
-use crate::{parameters::Config, process_graphs::utilities::{Interval, traversal_job::Msg}};
+use crate::{parameters::Config, process_graphs::utilities::{Interval, traversal_job::{Msg, TraversalJob}}};
 use crate::{
     process_graphs::{
         graph::ProteinGraph,
@@ -35,7 +35,7 @@ pub fn process_graphs(config: Config) -> Result<()> {
     //channels
     let (tx_graphs, rx_graphs) = bounded::<ProteinGraph>(ch_graph_in_size);
 
-    let (tx_jobs, rx_jobs) = bounded::<Msg>(ch_graph_query_size);
+    let (tx_jobs, rx_jobs) = bounded::<TraversalJob>(ch_graph_query_size);
     //let (tx_worker_results, rx_worker_results) = unbounded::<Msg>();
 
     let (tx_result_buffer_empty, rx_result_buffer_empty) = bounded::<EntryBuffer>(ch_proc_out_size);
@@ -61,28 +61,23 @@ pub fn process_graphs(config: Config) -> Result<()> {
         cli.max_handles,
     )?;
 
-    let pending = Arc::new(AtomicUsize::new(0));
     let intervals: Arc<[Interval]> = config.intervals.into();
 
     let worker_handles = spawn_workers(
         rx_jobs,
         tx_jobs.clone(),
-        pending.clone(),
         rx_result_buffer_empty,
         tx_result_buffer_full,
         batch_target_size,
         cli.avail_processors as usize,
         cli.max_vars,
         cli.max_cleavages,
-        cli.job_split_depth as usize,
     )?;
 
     let graph_handle = spawn_graph_dispatcher(
         rx_graphs,
         tx_jobs,
-        pending,
         intervals,
-        cli.avail_processors as usize,
     );
 
     let reader_handle = spawn_protein_graph_reader(reader_for_graph, tx_graphs);
