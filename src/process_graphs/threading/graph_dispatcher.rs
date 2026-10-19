@@ -15,12 +15,11 @@ pub fn spawn_graph_dispatcher(
     rx_graphs: Receiver<ProteinGraph>,
     rx_worker_results: Receiver<TraversalWorkerResult>,
     tx_jobs: Sender<TraversalJob>,
-    intervals: Vec<Interval>,
+    intervals: Box<[Interval]>,
     job_splits: usize,
     job_split_depth: usize,
 ) -> Result<JoinHandle<Result<(), Error>>> {
     let handle = thread::spawn(move || -> Result<()> {
-        let mut outstanding = 0usize;
 
         let mut total = 0;
 
@@ -29,39 +28,11 @@ pub fn spawn_graph_dispatcher(
             let graph = Arc::new(graph);
             total += 1;
 
-
-            for interval in intervals.iter().cloned() {
-                while let Ok(result) = rx_worker_results.try_recv() {
-                    handle_worker_result(
-                        result,
-                        &mut outstanding,
-                        &tx_jobs,
-                        job_splits,
-                        job_split_depth,
-                    )?;
-                }
-
-                tx_jobs.send(TraversalJob {
-                    graph: graph.clone(),
-                    interval,
-                    depth: 0,
-                })?;
-
-                outstanding += 1;
-            }
-        }
-
-        // drain until all recursive work completes
-        while outstanding > 0 {
-            let result = rx_worker_results.recv()?;
-
-            handle_worker_result(
-                result,
-                &mut outstanding,
-                &tx_jobs,
-                job_splits,
-                job_split_depth,
-            )?;
+            tx_jobs.send(TraversalJob {
+                graph: graph.clone(),
+                intervals: intervals.clone(),
+                depth: 0,
+            })?;
         }
         info!("FINISHED,Processed {} graphs", total);
         Ok(())
@@ -69,7 +40,7 @@ pub fn spawn_graph_dispatcher(
 
     Ok(handle)
 }
-
+/* 
 fn handle_worker_result(
     result: TraversalWorkerResult,
     outstanding: &mut usize,
@@ -90,7 +61,7 @@ fn handle_worker_result(
             if new_depth > job_split_depth {
                 warn!(
                     "{},Incomplete traversal: split depth limit reached,{}",
-                    job.graph.meta_data.accessions[0], job.interval
+                    job.graph.meta_data.accessions[0], job.intervals
                 );
                 return Ok(());
             }
@@ -120,3 +91,4 @@ fn handle_worker_result(
 
     Ok(())
 }
+    */

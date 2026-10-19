@@ -12,7 +12,7 @@ pub struct TraversalData {
 
 fn dfs(
     data: &TraversalData,
-    interval: Interval,
+    intervals: &Box<[Interval]>,
     max_vars: u16,
     max_cleaves: u16,
     traversal_state: &mut TraversalState,
@@ -45,12 +45,20 @@ fn dfs(
 
         let cur_tv = tv + data.mono_weight[target as usize];
 
-        let lower = interval.lower - cur_tv;
-        let upper = interval.upper - cur_tv;
+        let mut overlap = false;
+        for interval in intervals {
+            let lower = interval.lower - cur_tv;
+            let upper = interval.upper - cur_tv;
 
-        if !data.has_overlapping_interval(target as usize, lower, upper) {
+            if data.has_overlapping_interval(target as usize, lower, upper) {
+                overlap = true;
+                break;
+            }
+        }
+        if !overlap {
             continue;
         }
+                
 
         traversal_state.push_state(
             target,
@@ -60,7 +68,7 @@ fn dfs(
             cur_tv,
         );
 
-        dfs(data, interval, max_vars, max_cleaves, traversal_state, on_complete)?;
+        dfs(data, &intervals, max_vars, max_cleaves, traversal_state, on_complete)?;
 
         traversal_state.pop_state();
     }
@@ -101,13 +109,13 @@ impl TraversalData {
 impl TraversalData {
     pub fn traverse(
         &self,
-        interval: Interval,
+        intervals: Box<[Interval]>,
         max_vars: u16,
         max_cleaves: u16,
         traversal_state: &mut TraversalState,
         mut on_complete: impl FnMut(&[PathState], u16) -> Result<()>,
     ) -> Result<()> {
         traversal_state.reset();
-        dfs(self, interval, max_vars, max_cleaves, traversal_state, &mut on_complete)
+        dfs(self, &intervals, max_vars, max_cleaves, traversal_state, &mut on_complete)
     }
 }

@@ -71,7 +71,6 @@ pub fn process_graphs(config: Config) -> Result<()> {
         cli.avail_processors,
         cli.max_vars,
         cli.max_cleavages,
-        (cli.avail_memory as u64 * GIB * 7 / 10 / cli.avail_processors as u64) as usize,
     )?;
 
     let graph_handle = spawn_graph_dispatcher(

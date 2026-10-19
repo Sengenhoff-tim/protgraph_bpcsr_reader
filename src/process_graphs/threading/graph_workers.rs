@@ -18,8 +18,7 @@ pub fn spawn_workers(
     batch_target_size: usize,
     num_threads: usize,
     max_vars: u16,
-    max_cleaves: u16,
-    limit: usize,
+    max_cleaves: u16
 ) -> Result<Vec<JoinHandle<Result<()>>>> {
     let mut handles = Vec::with_capacity(num_threads);
 
@@ -67,7 +66,7 @@ fn traversal_thread(
 
     for job in rx_jobs {
         job.graph.traversal_data.traverse(
-            job.interval,
+            job.intervals,
             max_vars,
             max_cleaves,
             &mut traversal_state,

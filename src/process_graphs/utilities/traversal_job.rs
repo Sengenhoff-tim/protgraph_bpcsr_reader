@@ -9,6 +9,6 @@ pub enum TraversalWorkerResult {
 
 pub struct TraversalJob {
     pub graph: Arc<ProteinGraph>,
-    pub interval: Interval,
+    pub intervals: Box<[Interval]>,
     pub depth: usize,
 }

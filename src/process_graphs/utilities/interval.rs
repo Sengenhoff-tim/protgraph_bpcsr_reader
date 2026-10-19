@@ -1,9 +1,7 @@
 use anyhow::{Result, bail};
 use serde::Deserialize;
 
-// A helper struct for intervals of protein weights. Inclusive on both ends: [lower, upper]
-
-pub const WEIGHT_FACTOR: i64 = 1000000000; //as per the original implementation
+pub const WEIGHT_FACTOR: i64 = 1000000000;
 
 #[derive(Clone, Copy, Debug, Deserialize)]
 pub struct Interval {
@@ -15,14 +13,6 @@ impl Interval {
     pub fn overlaps(&self, other: &Interval) -> bool {
         self.lower <= other.upper && other.lower <= self.upper
     }
-
-    /* 
-    pub fn apply_weight_factor(&mut self) -> &mut Self {
-        self.lower *= WEIGHT_FACTOR;
-        self.upper *= WEIGHT_FACTOR;
-        self
-    }
-    */
 
     pub fn merge_with(&mut self, other: &Interval) -> &mut Self {
         self.lower = self.lower.min(other.lower);
@@ -46,59 +36,6 @@ impl Interval {
         }
         Ok(self)
     }
-
-    /// Splits one interval to n roughly equal intervals. Used for job rescheduling.
-    pub fn split_to_n(&self, n: usize) -> Vec<Interval> {
-        if n == 0 {
-            return Vec::new();
-        }
-
-        let size = self.upper - self.lower + 1;
-
-        // Cannot split further
-        if size <= 1 || n == 1 {
-            return vec![*self];
-        }
-
-        let step = (size + n as i64 - 1) / n as i64;
-
-        let mut out = Vec::with_capacity(n);
-        let mut start = self.lower;
-
-        while start <= self.upper {
-            let end = (start + step - 1).min(self.upper);
-
-            out.push(Interval {
-                lower: start,
-                upper: end,
-            });
-
-            start = end + 1;
-        }
-
-        out
-    }
-
-    /// Splits interval to intervals of chunk_size. The last remaining chunk has arbitrary length < chunk size.
-    /// For example: 700-800 with chunk size 70: [700-770, 771-800]. Actual chunks are multiplied with WEIGHT_FACTOR (see parameters::config)
-    fn split_to_size(&self, chunk_size: i64) -> Vec<Interval> {
-        let mut result = Vec::new();
-
-        let mut start = self.lower;
-
-        while start <= self.upper {
-            let end = (start + chunk_size - 1).min(self.upper);
-
-            result.push(Interval {
-                lower: start,
-                upper: end,
-            });
-
-            start = end + 1;
-        }
-
-        result
-    }
 }
 
 impl std::fmt::Display for Interval {
@@ -113,14 +50,14 @@ impl std::fmt::Display for Interval {
 }
 
 pub trait IntervalVecExt {
-    fn to_chunks(self, chunk_size: i64) -> Result<Vec<Interval>>;
+    fn merge_and_sort(self) -> Result<Box<[Interval]>>;
 }
 
 impl IntervalVecExt for Vec<Interval> {
-    /// Merges all overlapping intervals, then splits each into chunks of at most `chunk_size`.
-    fn to_chunks(mut self, chunk_size: i64) -> Result<Vec<Interval>> {
+    /// Sorts intervals and merges all overlapping intervals.
+    fn merge_and_sort(mut self) -> Result<Box<[Interval]>> {
         if self.is_empty() {
-            return Ok(vec![]);
+            return Ok(Box::new([]));
         }
 
         self.sort_by_key(|i| i.lower);
@@ -132,13 +69,13 @@ impl IntervalVecExt for Vec<Interval> {
             if current.overlaps(&interval) {
                 current.merge_with(&interval);
             } else {
-                result.extend(current.split_to_size(chunk_size));
+                result.push(current);
                 current = interval;
             }
         }
 
-        result.extend(current.split_to_size(chunk_size));
+        result.push(current);
 
-        Ok(result)
+        Ok(result.into_boxed_slice())
     }
 }
