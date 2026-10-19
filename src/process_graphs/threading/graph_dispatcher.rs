@@ -1,6 +1,5 @@
 use std::{
     sync::{
-        atomic::{AtomicUsize, Ordering::SeqCst},
         Arc,
     },
     thread::{self, JoinHandle},
@@ -12,7 +11,7 @@ use tracing::info;
 
 use crate::process_graphs::graph::ProteinGraph;
 use crate::process_graphs::utilities::{
-    traversal_job::{Msg, TraversalJob},
+    traversal_job::{TraversalJob},
     Interval, TraversalState,
 };
 

@@ -1,16 +1,12 @@
 use std::{
-    sync::{
-        atomic::{AtomicUsize, Ordering::SeqCst},
-        Arc,
-    },
-    thread::{self, JoinHandle},
+    thread::{self, JoinHandle}
 };
 
 use anyhow::{Context, Result};
 use crossbeam_channel::{Receiver, Sender};
 
 use crate::process_graphs::utilities::{
-    traversal_job::{Msg, TraversalJob},
+    traversal_job::{TraversalJob},
     PathState, TraversalState,
 };
 use crate::shared::EntryBuffer;
@@ -59,13 +55,12 @@ fn traversal_thread(
     tx_filled: Sender<EntryBuffer>,
     batch_target_size: usize,
     max_vars: u16,
-    max_cleaves: u16
+    max_cleaves: u16,
 ) -> Result<()> {
     let mut batch_buffer = rx_reuse.recv()?;
     let mut qualifier_buffer = String::new();
 
-    while let Ok(msg) = rx.recv() {
-        let mut job = msg;
+    while let Ok(mut job) = rx.recv() {
 
         let graph = job.graph.clone();
         let intervals = job.intervals.clone();

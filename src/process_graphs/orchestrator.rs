@@ -1,11 +1,11 @@
 use std::{
-    fs::{File, create_dir_all}, io::BufReader, sync::{Arc, atomic::AtomicUsize}
+    fs::{File, create_dir_all}, io::BufReader, sync::{Arc}
 };
 
 use anyhow::{Context, Result, anyhow};
 use crossbeam_channel::{bounded, unbounded};
 
-use crate::{parameters::Config, process_graphs::utilities::{Interval, traversal_job::{Msg, TraversalJob}}};
+use crate::{parameters::Config, process_graphs::utilities::{Interval, traversal_job::{TraversalJob}}};
 use crate::{
     process_graphs::{
         graph::ProteinGraph,
