@@ -6,8 +6,6 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[derive(Debug, Clone)]
 pub struct LoggingConfig {
     pub file_path: String,
-    pub stderr_level: tracing_subscriber::filter::LevelFilter,
-    pub file_ansi: bool,
     pub show_target: bool,
 }
 
@@ -15,8 +13,6 @@ impl Default for LoggingConfig {
     fn default() -> Self {
         Self {
             file_path: "exceptions.log".to_string(),
-            stderr_level: tracing_subscriber::filter::LevelFilter::WARN,
-            file_ansi: false,
             show_target: false,
         }
     }
@@ -30,12 +26,12 @@ pub fn init_logging(config: LoggingConfig) -> Result<tracing_appender::non_block
     let file_layer = tracing_subscriber::fmt::layer()
         .with_writer(non_blocking)
         .with_ansi(false)
-        .with_target(false);
+        .with_target(config.show_target);
 
     let stderr_layer = tracing_subscriber::fmt::layer()
         .with_writer(std::io::stderr)
         .with_ansi(true)
-        .with_target(false)
+        .with_target(config.show_target)
         .with_filter(tracing_subscriber::filter::LevelFilter::WARN);
 
     tracing_subscriber::registry()

@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use crossbeam_channel::{Receiver, Sender};
 
 use crate::process_graphs::{
-    graph::TraversalStatus, utilities::{
+    utilities::{
         TraversalState, traversal_job::{TraversalJob, TraversalWorkerResult},
     },
 };
@@ -61,14 +61,14 @@ fn traversal_thread(
     max_cleaves: u16,
     limit: usize,
 ) -> Result<()> {
-    let mut traversal_state = TraversalState::new(limit);
+    let mut traversal_state = TraversalState::new();
 
     let mut batch_buffer = rx_reuse.recv()?;
 
     let mut qualifier_buffer = String::new();
 
     for job in rx_jobs {
-        match job.graph.traversal_data.traverse(
+        job.graph.traversal_data.traverse(
             job.interval,
             max_vars,
             max_cleaves,
@@ -91,19 +91,9 @@ fn traversal_thread(
 
                 Ok(())
             },
-        ) {
-            Ok(TraversalStatus::Overflow) => {
-                tx_worker_results
-                    .send(TraversalWorkerResult::Reschedule(job))
-                    .with_context(|| format!("worker {worker_id} failed to reschedule"))?;
-            }
+        )?;
 
-            Ok(TraversalStatus::Success) => {
-                tx_worker_results.send(TraversalWorkerResult::Complete)?;
-            }
-
-            Err(e) => return Err(e),
-        }
+        tx_worker_results.send(TraversalWorkerResult::Complete)?;
     }
 
     if !batch_buffer.data.is_empty() {
