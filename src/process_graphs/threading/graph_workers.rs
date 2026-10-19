@@ -89,8 +89,6 @@ fn traversal_thread(
                 Ok(())
             },
         )?;
-
-        tx_worker_results.send(TraversalWorkerResult::Complete)?;
     }
 
     if !batch_buffer.data.is_empty() {
