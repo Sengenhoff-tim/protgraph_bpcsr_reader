@@ -13,9 +13,17 @@ pub struct TraversalState {
 
 impl TraversalState {
     pub fn new() -> Self {
-        Self {
+        let mut s = Self {
             stack: Vec::new(),
-        }
+        };
+        s.stack.push(PathState {
+            node: 0,
+            edge: None,
+            var: 0,
+            cleaves: 0,
+            tv: 0,
+        });
+        s
     }
 
     pub fn from_path(path: Vec<PathState>) -> Self {
@@ -63,7 +71,7 @@ impl TraversalState {
 
     #[inline]
     pub fn current(&self) -> &PathState {
-        self.stack.last().expect("traversal state is never empty after reset")
+        self.stack.last().expect("TraversalState is empty")
     }
 
     #[inline]
