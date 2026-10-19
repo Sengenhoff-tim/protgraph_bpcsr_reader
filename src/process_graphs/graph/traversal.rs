@@ -12,11 +12,13 @@ pub struct TraversalData {
 
 fn dfs(
     data: &TraversalData,
-    intervals: &Box<[Interval]>,
+    intervals: &[Interval],
     max_vars: u16,
     max_cleaves: u16,
     traversal_state: &mut TraversalState,
     on_complete: &mut impl FnMut(&[PathState], u16) -> Result<()>,
+    offload: &mut impl FnMut(&[PathState]) -> bool,
+    split_depth: usize,
 ) -> Result<()> {
     let (node, tv, cleaves, var) = {
         let s = traversal_state.current();
@@ -34,7 +36,7 @@ fn dfs(
     let edge_begin = if node_idx == 0 { 0 } else { data.nodes[node_idx - 1] as usize };
     let edge_end = data.nodes[node_idx] as usize;
 
-    for (index, &(edge_ft_count, edge_cleave, target)) in
+    for (index, &(edge_ft_count, edge_cleave, target))  in
         data.ft_clv_edge[edge_begin..edge_end].iter().enumerate()
     {
         let cur_cleaves = cleaves + edge_cleave;
@@ -68,11 +70,16 @@ fn dfs(
             cur_tv,
         );
 
-        dfs(data, &intervals, max_vars, max_cleaves, traversal_state, on_complete)?;
+        let handed_off = traversal_state.path().len() <= split_depth
+            && offload(traversal_state.path());
+
+        if !handed_off {
+            dfs(data, intervals, max_vars, max_cleaves, traversal_state,
+                on_complete, offload, split_depth)?;
+        }
 
         traversal_state.pop_state();
     }
-
     Ok(())
 }
 
@@ -109,13 +116,15 @@ impl TraversalData {
 impl TraversalData {
     pub fn traverse(
         &self,
-        intervals: Box<[Interval]>,
+        intervals: &[Interval],
         max_vars: u16,
         max_cleaves: u16,
         traversal_state: &mut TraversalState,
+        offload: &mut impl FnMut(&[PathState]) -> bool,
+        split_depth: usize,
         mut on_complete: impl FnMut(&[PathState], u16) -> Result<()>,
     ) -> Result<()> {
-        traversal_state.reset();
-        dfs(self, &intervals, max_vars, max_cleaves, traversal_state, &mut on_complete)
+        dfs(self, intervals, max_vars, max_cleaves, traversal_state,
+            &mut on_complete, offload, split_depth)
     }
 }

@@ -1,94 +1,54 @@
 use std::{
-    sync::Arc,
-    thread,
-    thread::JoinHandle,
+    sync::{
+        atomic::{AtomicUsize, Ordering::SeqCst},
+        Arc,
+    },
+    thread::{self, JoinHandle},
 };
 
-use anyhow::{Error, Result};
+use anyhow::{Result};
 use crossbeam_channel::{Receiver, Sender};
-use tracing::{info, warn};
+use tracing::info;
 
-use crate::process_graphs::utilities::traversal_job::{TraversalJob, TraversalWorkerResult};
-use crate::process_graphs::{graph::ProteinGraph, utilities::Interval};
+use crate::process_graphs::graph::ProteinGraph;
+use crate::process_graphs::utilities::{
+    traversal_job::{Msg, TraversalJob},
+    Interval, TraversalState,
+};
 
 pub fn spawn_graph_dispatcher(
     rx_graphs: Receiver<ProteinGraph>,
-    rx_worker_results: Receiver<TraversalWorkerResult>,
-    tx_jobs: Sender<TraversalJob>,
-    intervals: Box<[Interval]>,
-    job_splits: usize,
-    job_split_depth: usize,
-) -> Result<JoinHandle<Result<(), Error>>> {
-    let handle = thread::spawn(move || -> Result<()> {
+    tx_jobs: Sender<Msg>,
+    pending: Arc<AtomicUsize>,
+    intervals: Arc<[Interval]>,
+    num_workers: usize,
+) -> JoinHandle<Result<()>> {
+    thread::spawn(move || -> Result<()> {
+        let mut total = 0usize;
 
-        let mut total = 0;
-
-        // initial submission
         for graph in rx_graphs {
             let graph = Arc::new(graph);
             total += 1;
 
-            tx_jobs.send(TraversalJob {
-                graph: graph.clone(),
+            // Count the root job before sending so the total never hits zero early.
+            pending.fetch_add(1, SeqCst);
+            info!("START, Traversal for {}", graph.meta_data.accessions[0]);
+
+            tx_jobs.send(Msg::Job(TraversalJob {
+                graph,
                 intervals: intervals.clone(),
-                depth: 0,
-            })?;
+                state: TraversalState::new(),
+            }))?;
         }
-        info!("FINISHED,Processed {} graphs", total);
+
+        // Release the dispatcher's own hold. If no jobs are in flight, shut the workers down.
+        if pending.fetch_sub(1, SeqCst) == 1 {
+            for _ in 0..num_workers {
+                tx_jobs.send(Msg::Stop)?;
+            }
+        }
+
+        info!("FINISHED, Processed {} graphs", total);
         Ok(())
-    });
-
-    Ok(handle)
+    })
 }
-/* 
-fn handle_worker_result(
-    result: TraversalWorkerResult,
-    outstanding: &mut usize,
-    tx_jobs: &Sender<TraversalJob>,
-    job_splits: usize,
-    job_split_depth: usize,
-) -> anyhow::Result<()> {
-    match result {
-        TraversalWorkerResult::Complete => {
-            *outstanding -= 1;
-        }
-
-        TraversalWorkerResult::Reschedule(job) => {
-            *outstanding -= 1;
-
-            let new_depth = job.depth + 1;
-
-            if new_depth > job_split_depth {
-                warn!(
-                    "{},Incomplete traversal: split depth limit reached,{}",
-                    job.graph.meta_data.accessions[0], job.intervals
-                );
-                return Ok(());
-            }
-
-            let splits = job.interval.split_to_n(job_splits);
-
-            if splits.len() == 1 {
-                warn!(
-                    "{},Incomplete traversal: No further splits possible,{}",
-                    job.graph.meta_data.accessions[0], job.interval
-                );
-
-                return Ok(());
-            }
-
-            for interval in &splits {
-                tx_jobs.send(TraversalJob {
-                    graph: job.graph.clone(),
-                    interval: *interval,
-                    depth: new_depth,
-                })?;
-            }
-
-            *outstanding += splits.len();
-        }
-    }
-
-    Ok(())
-}
-    */

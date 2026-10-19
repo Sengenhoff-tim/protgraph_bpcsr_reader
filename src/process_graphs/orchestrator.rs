@@ -1,19 +1,18 @@
 use std::{
-    fs::{File, create_dir_all},
-    io::{BufReader}
+    fs::{File, create_dir_all}, io::BufReader, sync::{Arc, atomic::AtomicUsize}
 };
 
 use anyhow::{Context, Result, anyhow};
 use crossbeam_channel::{bounded, unbounded};
 
-use crate::parameters::Config;
+use crate::{parameters::Config, process_graphs::utilities::{Interval, traversal_job::Msg}};
 use crate::{
     process_graphs::{
         graph::ProteinGraph,
         threading::{
             spawn_graph_dispatcher, spawn_protein_graph_reader, spawn_workers, spawn_writer_manager,
         },
-        utilities::traversal_job::{TraversalJob, TraversalWorkerResult},
+        //utilities::traversal_job::{TraversalJob},
     },
     shared::EntryBuffer,
 };
@@ -36,8 +35,8 @@ pub fn process_graphs(config: Config) -> Result<()> {
     //channels
     let (tx_graphs, rx_graphs) = bounded::<ProteinGraph>(ch_graph_in_size);
 
-    let (tx_jobs, rx_jobs) = bounded::<TraversalJob>(ch_graph_query_size);
-    let (tx_worker_results, rx_worker_results) = unbounded::<TraversalWorkerResult>();
+    let (tx_jobs, rx_jobs) = bounded::<Msg>(ch_graph_query_size);
+    //let (tx_worker_results, rx_worker_results) = unbounded::<Msg>();
 
     let (tx_result_buffer_empty, rx_result_buffer_empty) = bounded::<EntryBuffer>(ch_proc_out_size);
     let (tx_result_buffer_full, rx_result_buffer_full) = unbounded::<EntryBuffer>();
@@ -62,25 +61,29 @@ pub fn process_graphs(config: Config) -> Result<()> {
         cli.max_handles,
     )?;
 
+    let pending = Arc::new(AtomicUsize::new(0));
+    let intervals: Arc<[Interval]> = config.intervals.into();
+
     let worker_handles = spawn_workers(
         rx_jobs,
-        tx_worker_results,
+        tx_jobs.clone(),
+        pending.clone(),
         rx_result_buffer_empty,
         tx_result_buffer_full,
         batch_target_size,
-        cli.avail_processors,
+        cli.avail_processors as usize,
         cli.max_vars,
         cli.max_cleavages,
+        cli.job_split_depth as usize,
     )?;
 
     let graph_handle = spawn_graph_dispatcher(
         rx_graphs,
-        rx_worker_results,
         tx_jobs,
-        config.intervals,
-        cli.job_splits as usize,
-        cli.job_split_depth as usize,
-    )?;
+        pending,
+        intervals,
+        cli.avail_processors as usize,
+    );
 
     let reader_handle = spawn_protein_graph_reader(reader_for_graph, tx_graphs);
 
