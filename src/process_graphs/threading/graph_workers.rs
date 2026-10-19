@@ -39,7 +39,6 @@ pub fn spawn_workers(
                 batch_target_size,
                 max_vars,
                 max_cleaves,
-                limit,
             )
             .with_context(|| format!("worker {i} died"))
         });
@@ -59,7 +58,6 @@ fn traversal_thread(
     batch_target_size: usize,
     max_vars: u16,
     max_cleaves: u16,
-    limit: usize,
 ) -> Result<()> {
     let mut traversal_state = TraversalState::new();
 
