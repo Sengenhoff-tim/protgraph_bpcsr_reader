@@ -30,20 +30,6 @@ impl TraversalState {
         assert!(!path.is_empty(), "path must contain at least the root");
         Self { stack: path }
     }
-
-    /* 
-    /// Resets to a fresh traversal starting at the root node.
-    pub fn reset(&mut self) {
-        self.stack.clear();
-        self.stack.push(PathState {
-            node: 0,
-            edge: None,
-            var: 0,
-            cleaves: 0,
-            tv: 0,
-        });
-    }
-    */
     
     /// Pushes a child state. Returns false if the configured limit is hit.
     #[inline]
@@ -79,3 +65,17 @@ impl TraversalState {
         &self.stack
     }
 }
+
+    /* 
+    /// Resets to a fresh traversal starting at the root node.
+    pub fn reset(&mut self) {
+        self.stack.clear();
+        self.stack.push(PathState {
+            node: 0,
+            edge: None,
+            var: 0,
+            cleaves: 0,
+            tv: 0,
+        });
+    }
+    */

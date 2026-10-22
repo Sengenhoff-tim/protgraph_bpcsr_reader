@@ -7,7 +7,6 @@ use crossbeam_channel::{Receiver, Sender};
 
 use crate::process_graphs::utilities::{
     traversal_job::{TraversalJob},
-    PathState, TraversalState,
 };
 use crate::shared::EntryBuffer;
 
