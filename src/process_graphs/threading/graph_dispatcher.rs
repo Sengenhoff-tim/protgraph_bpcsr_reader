@@ -1,42 +1,62 @@
 use std::{
-    sync::{
-        Arc,
-    },
-    thread::{self, JoinHandle},
+    sync::Arc,
+    thread::{self, JoinHandle}
+};
+
+use crate::process_graphs::{
+    graph::{ProteinGraph, FrontierBuilder},
+    utilities::Interval
 };
 
 use anyhow::{Result};
 use crossbeam_channel::{Receiver, Sender};
 use tracing::info;
 
-use crate::process_graphs::graph::ProteinGraph;
 use crate::process_graphs::utilities::{
     traversal_job::{TraversalJob},
-    Interval, TraversalState,
 };
 
 pub fn spawn_graph_dispatcher(
     rx_graphs: Receiver<ProteinGraph>,
     tx_jobs: Sender<TraversalJob>,
     intervals: Arc<[Interval]>,
+    max_vars: u16,
+    max_cleaves: u16,
+    jobs_per_graph: usize,
 ) -> JoinHandle<Result<()>> {
     thread::spawn(move || -> Result<()> {
-        let mut total = 0usize;
+        let mut total_graphs = 0usize;
 
         for graph in rx_graphs {
             let graph = Arc::new(graph);
-            total += 1;
+            total_graphs += 1;
 
-            info!("START, Traversal for {}", graph.meta_data.accessions[0]);
+            info!("START traversal for {}", graph.meta_data.accessions[0]);
 
-            tx_jobs.send(TraversalJob {
-                graph,
-                intervals: intervals.clone(),
-                state: TraversalState::new(),
-            })?;
+            let frontier = FrontierBuilder::new(
+                Arc::clone(&graph),
+                Arc::clone(&intervals),
+                max_vars,
+                max_cleaves,
+                jobs_per_graph,
+            )
+            .build();
+
+            info!(
+                "FRONTIER for {}: {} jobs",
+                graph.meta_data.accessions[0],
+                frontier.len()
+            );
+
+            for job in frontier {
+                tx_jobs.send(job)?;
+            }
         }
 
-        info!("FINISHED, Processed {} graphs", total);
+        info!(
+            "FINISHED pocessing {} graphs",
+            total_graphs
+        );
         Ok(())
     })
 }

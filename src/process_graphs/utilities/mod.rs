@@ -11,3 +11,4 @@ pub use pdbs::Pdbs;
 //pub use query_subgraph::SubgraphForQuery;
 pub use string_table::StringTable;
 pub use traversal_state::{PathState,TraversalState};
+pub use traversal_job::TraversalJob;

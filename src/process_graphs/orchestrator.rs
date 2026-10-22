@@ -65,7 +65,6 @@ pub fn process_graphs(config: Config) -> Result<()> {
 
     let worker_handles = spawn_workers(
         rx_jobs,
-        tx_jobs.clone(),
         rx_result_buffer_empty,
         tx_result_buffer_full,
         batch_target_size,
@@ -78,6 +77,9 @@ pub fn process_graphs(config: Config) -> Result<()> {
         rx_graphs,
         tx_jobs,
         intervals,
+        cli.max_vars,
+        cli.max_cleavages,
+        10*cli.avail_processors
     );
 
     let reader_handle = spawn_protein_graph_reader(reader_for_graph, tx_graphs);
