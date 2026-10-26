@@ -40,4 +40,22 @@ impl Pdbs {
         let e = self.offsets[node + 1];
         Some(&self.all[s..e])
     }
+
+    #[inline]
+    pub fn has_overlapping_interval(&self, node: usize, intervals: &[Interval], offset: i64) -> bool {
+        let Some(slice) = self.get_node_intervals(node) else { return false };
+        let mut start = 0;
+        for q in intervals {
+            let lower = q.lower - offset;
+            let upper = q.upper - offset;
+            // Node intervals ending before `lower` can't match this or any later query.
+            while start < slice.len() && slice[start].upper < lower {
+                start += 1;
+            }
+            if start < slice.len() && slice[start].lower <= upper {
+                return true;
+            }
+        }
+        false
+    }
 }

@@ -64,7 +64,7 @@ fn writer_manager_thread(
     create_dir_all(tmp_path)?;
 
     while let Ok(mut entry_buff) = rx_result_buffer_full.recv() {
-        let mut inserted = 0usize;
+        let mut completed = 0usize;
         for entry in entry_buff.iter() {
             let path = resolve_path(
                 entry.get_seq(&entry_buff),
@@ -76,9 +76,9 @@ fn writer_manager_thread(
             let writer = get_writer(&mut writers, &path).context("Failed to open shard file")?;
 
             write_entry_binary(writer, entry.get(&entry_buff))?;
-            inserted += 1;
+            completed += 1;
         }
-        info!("BATCH_COMPLETE,Inserted {} entries", inserted);
+        info!("BATCH_COMPLETE for {} entries", completed);
 
         entry_buff.clear();
 

@@ -4,7 +4,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use byteorder::{BigEndian, ReadBytesExt};
 
 use crate::process_graphs::{
-    graph::{MetaData, ProteinGraph, TreeData}, utilities::{Interval, Pdbs, StringTable},
+    graph::{MetaData, ProteinGraph, TreeData}, utilities::{FtClvEdge, Interval, Pdbs, StringTable},
 };
 
 /// reads .bpcsr files produced by protgraph
@@ -102,11 +102,15 @@ pub fn read_single_graph<R: BufRead>(num_acc: u32, reader: &mut R) -> Result<Pro
         primary_accession
     ))?;
 
-    let ft_clv_edge: Box<[(u16, u16, u32)]> = ft_count
+    let ft_clv_edge: Box<[FtClvEdge]> = ft_count
         .iter()
         .zip(cleaved.iter())
         .zip(edges.iter())
-        .map(|((&vc, &cl), &ed)| (vc as u16, cl, ed))
+        .map(|((&vc, &cl), &ed)| FtClvEdge {
+            features: vc as u16,
+            cleaves: cl,
+            edge: ed,
+        })
         .collect::<Vec<_>>()
         .into_boxed_slice();
 
@@ -124,7 +128,7 @@ pub fn read_single_graph<R: BufRead>(num_acc: u32, reader: &mut R) -> Result<Pro
             iso_position: iso_position.into_boxed_slice(),
             sequences,
             qualifiers,
-        },
+        }
     })
 }
 

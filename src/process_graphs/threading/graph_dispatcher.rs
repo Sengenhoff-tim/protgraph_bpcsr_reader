@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::process_graphs::{
-    graph::{ProteinGraph, FrontierBuilder},
-    utilities::Interval
+    graph::ProteinGraph, 
+    utilities::TraversalContext
 };
 
 use anyhow::{Result};
@@ -13,15 +13,13 @@ use crossbeam_channel::{Receiver, Sender};
 use tracing::info;
 
 use crate::process_graphs::utilities::{
-    traversal_job::{TraversalJob},
+    types::{TraversalJob},
 };
 
 pub fn spawn_graph_dispatcher(
     rx_graphs: Receiver<ProteinGraph>,
     tx_jobs: Sender<TraversalJob>,
-    intervals: Arc<[Interval]>,
-    max_vars: u16,
-    max_cleaves: u16,
+    ctx: Arc<TraversalContext>,
     jobs_per_graph: usize,
 ) -> JoinHandle<Result<()>> {
     thread::spawn(move || -> Result<()> {
@@ -33,14 +31,7 @@ pub fn spawn_graph_dispatcher(
 
             info!("TRAVERSAL start for {}", graph.meta_data.accessions[0]);
 
-            let frontier = FrontierBuilder::new(
-                Arc::clone(&graph),
-                Arc::clone(&intervals),
-                max_vars,
-                max_cleaves,
-                jobs_per_graph,
-            )
-            .build();
+             let frontier = graph.build_frontier(&ctx, jobs_per_graph);
 
             info!(
                 "FRONTIER for {}: {} jobs",
