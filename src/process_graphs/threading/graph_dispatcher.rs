@@ -31,7 +31,7 @@ pub fn spawn_graph_dispatcher(
             let graph = Arc::new(graph);
             total_graphs += 1;
 
-            info!("START traversal for {}", graph.meta_data.accessions[0]);
+            info!("TRAVERSAL start for {}", graph.meta_data.accessions[0]);
 
             let frontier = FrontierBuilder::new(
                 Arc::clone(&graph),
@@ -54,7 +54,7 @@ pub fn spawn_graph_dispatcher(
         }
 
         info!(
-            "FINISHED pocessing {} graphs",
+            "INPUT read complete: {} graphs",
             total_graphs
         );
         Ok(())

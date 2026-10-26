@@ -1,6 +1,6 @@
-use super::{MetaData, TraversalData};
+use super::{MetaData, TreeData};
 
 pub struct ProteinGraph {
-    pub traversal_data: TraversalData,
+    pub tree_data: TreeData,
     pub meta_data: MetaData,
 }

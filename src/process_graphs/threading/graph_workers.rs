@@ -56,9 +56,7 @@ fn traversal_thread(
     let mut qualifier_buffer = String::new();
 
     while let Ok(mut job) = rx.recv() {
-
-
-        job.graph.traversal_data.traverse(
+        job.graph.tree_data.traverse(
             &job.intervals,
             max_vars,
             max_cleaves,

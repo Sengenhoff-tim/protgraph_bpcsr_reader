@@ -4,8 +4,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use byteorder::{BigEndian, ReadBytesExt};
 
 use crate::process_graphs::{
-    graph::{MetaData, ProteinGraph, TraversalData},
-    utilities::{Interval, Pdbs, StringTable},
+    graph::{MetaData, ProteinGraph, TreeData}, utilities::{Interval, Pdbs, StringTable},
 };
 
 /// reads .bpcsr files produced by protgraph
@@ -112,7 +111,7 @@ pub fn read_single_graph<R: BufRead>(num_acc: u32, reader: &mut R) -> Result<Pro
         .into_boxed_slice();
 
     Ok(ProteinGraph {
-        traversal_data: TraversalData {
+        tree_data: TreeData {
             nodes: nodes.into_boxed_slice(),
             mono_weight: mono_weight.into_boxed_slice(),
             ft_clv_edge,
