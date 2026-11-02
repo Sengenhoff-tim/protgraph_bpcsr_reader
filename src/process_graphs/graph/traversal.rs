@@ -38,14 +38,14 @@ impl TreeData {
         &self,
         ctx: &TraversalContext,
         traversal_state: &mut Vec<PathState>,
-        on_complete: &mut impl FnMut(&[PathState], u16) -> Result<()>,
+        on_complete: &mut impl FnMut(&[PathState]) -> Result<()>,
     ) -> Result<()> {
         let current_state = *traversal_state.last().expect("path must contain at least the root");
         let node_idx = current_state.node as usize;
         let last_idx = self.nodes.len() - 1;
 
         if node_idx == last_idx {
-            on_complete(traversal_state, current_state.cleaves)?;
+            on_complete(traversal_state)?;
             return Ok(());
         }
 

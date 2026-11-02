@@ -51,20 +51,18 @@ fn traversal_thread(
     ctx: Arc<TraversalContext>
 ) -> Result<()> {
     let mut batch_buffer = rx_reuse.recv()?;
-    let mut qualifier_buffer = String::new();
+    let mut sequence_buffer: Vec<u8> = Vec::new();
 
     while let Ok(mut job) = rx.recv() {
         let graph = &job.graph;
         job.graph.tree_data.traverse_depth_first(
             &ctx,
             &mut job.path,
-            &mut |path, cleaves| {
-                qualifier_buffer.clear();
+            &mut |path| {
                 graph.meta_data.build_peptide(
                     path,
-                    cleaves,
+                    &mut sequence_buffer,
                     &mut batch_buffer.data,
-                    &mut qualifier_buffer,
                 )?;
                 flush_if_full(&mut batch_buffer, batch_target_size, &rx_reuse, &tx_filled)
             },
@@ -85,9 +83,9 @@ fn flush_if_full(
     tx_filled: &Sender<EntryBuffer>,
 ) -> Result<()> {
     if batch_buffer.data.len() >= batch_target_size {
-        let mut new_buffer = rx_reuse.recv()?;
-        std::mem::swap(batch_buffer, &mut new_buffer);
-        tx_filled.send(new_buffer)?;
+        let new_buffer = rx_reuse.recv()?;
+        let old_buffer = std::mem::replace(batch_buffer, new_buffer);
+        tx_filled.send(old_buffer)?;
     }
     Ok(())
 }

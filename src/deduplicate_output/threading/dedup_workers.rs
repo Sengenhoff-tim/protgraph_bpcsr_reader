@@ -1,8 +1,7 @@
 use std::{collections::HashMap, io::Read, path::PathBuf};
 
 use crate::shared::{
-    EntryBuffer,
-    bin_entry::{MetaRef, SeqRef},
+    EntryBuffer, bin_entry::{MetaRef, SeqRef},
 };
 use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender};
@@ -37,21 +36,22 @@ pub fn spawn_worker(
 // always land in the same file. Within-file deduplication is therefore
 // globally complete.
 pub fn build_worker_result(buffer: EntryBuffer) -> WorkerResult {
-    let mut map: HashMap<&[u8], (SeqRef, Vec<MetaRef>)> = HashMap::new();
+    let groups: Vec<(SeqRef, Vec<MetaRef>)> = {
+        let mut map: HashMap<&[u8], (SeqRef, Vec<MetaRef>)> = HashMap::new();
 
-    for entry in buffer.iter() {
-        let (seq, meta) = entry.get_seq_meta_ref(&buffer.data);
+        for entry in buffer.iter() {
+            let seq = entry.get_seq_ref();
+            let meta = entry.get_meta_ref();
+            let seq_bytes = seq.get(&buffer);
 
-        let seq_bytes = seq.get(&buffer);
+            map.entry(seq_bytes)
+                .and_modify(|(_, metas)| metas.push(meta))
+                .or_insert_with(|| (seq, vec![meta]));
+        }
 
-        map.entry(seq_bytes)
-            .and_modify(|(_, metas)| {
-                metas.push(meta);
-            })
-            .or_insert_with(|| (seq, vec![meta]));
-    }
-
-    let groups = map.into_values().collect();
+        // Consuming the map ends its borrow of `buffer`.
+        map.into_values().collect()
+    };
 
     WorkerResult { buffer, groups }
 }

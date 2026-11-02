@@ -1,3 +1,16 @@
+// src/entry.rs
+
+use crate::process_graphs::utilities::unpack_into;
+
+pub const SIZE_LEN: usize = 4;
+pub const ID_LEN: usize = 10;
+pub const START_LEN: usize = 2;
+/// Bytes before the sequence: record size, ID, start position.
+pub const HEADER_LEN: usize = SIZE_LEN + ID_LEN + START_LEN;
+/// Bytes covered by MetaRef: ID and start position.
+pub const META_LEN: usize = ID_LEN + START_LEN;
+
+#[derive(Debug)]
 pub struct EntryBuffer {
     pub data: Vec<u8>,
 }
@@ -20,53 +33,19 @@ pub struct MetaRef {
     pub len: u32,
 }
 
-impl EntryRef {
+impl MetaRef {
     #[inline]
     pub fn get<'a>(&self, buffer: &'a EntryBuffer) -> &'a [u8] {
         let start = self.start as usize;
-        let end = start + self.len as usize;
-
-        &buffer.data[start..end]
+        &buffer.data[start..start + self.len as usize]
     }
+}
 
+impl SeqRef {
     #[inline]
-    pub fn get_seq<'a>(&self, buffer: &'a EntryBuffer) -> &'a [u8] {
-        let entry_start = self.start as usize;
-
-        let mut pos = entry_start + 4;
-
-        let seq_len = u32::from_le_bytes(buffer.data[pos..pos + 4].try_into().unwrap()) as usize;
-
-        pos += 4;
-
-        &buffer.data[pos..pos + seq_len]
-    }
-
-    #[inline]
-    pub fn get_seq_meta_ref(&self, buffer: &[u8]) -> (SeqRef, MetaRef) {
-        let entry_start = self.start as usize;
-        let entry_end = entry_start + self.len as usize;
-
-        let mut pos = entry_start + 4; // skip record_size
-
-        let seq_len =
-            u32::from_le_bytes(buffer[pos..pos + 4].try_into().expect("invalid entry")) as usize;
-
-        pos += 4;
-
-        let seq = SeqRef {
-            start: pos as u64,
-            len: seq_len as u32,
-        };
-
-        pos += seq_len;
-
-        let meta = MetaRef {
-            start: pos as u64,
-            len: (entry_end - pos) as u32,
-        };
-
-        (seq, meta)
+    pub fn get<'a>(&self, buffer: &'a EntryBuffer) -> &'a [u8] {
+        let start = self.start as usize;
+        &buffer.data[start..start + self.len as usize]
     }
 }
 
@@ -89,23 +68,49 @@ impl EntryBuffer {
     }
 }
 
-impl SeqRef {
+impl EntryRef {
     #[inline]
     pub fn get<'a>(&self, buffer: &'a EntryBuffer) -> &'a [u8] {
         let start = self.start as usize;
-        let end = start + self.len as usize;
-
-        &buffer.data[start..end]
+        &buffer.data[start..start + self.len as usize]
     }
-}
 
-impl MetaRef {
+    /// Returns the ID and start position bytes, excluding the size field and sequence.
     #[inline]
-    pub fn get<'a>(&self, buffer: &'a EntryBuffer) -> &'a [u8] {
-        let start = self.start as usize;
-        let end = start + self.len as usize;
+    pub fn get_meta_ref(&self) -> MetaRef {
+        MetaRef {
+            start: self.start + SIZE_LEN as u64,
+            len: META_LEN as u32,
+        }
+    }
 
-        &buffer.data[start..end]
+    /// Returns the zero-padded ID bytes.
+    #[inline]
+    pub fn get_id<'a>(&self, buffer: &'a EntryBuffer) -> &'a [u8] {
+        &self.get_meta_ref().get(buffer)[..ID_LEN]
+    }
+
+    /// Returns the start position stored in the record.
+    #[inline]
+    pub fn get_start_position(&self, buffer: &EntryBuffer) -> u16 {
+        let meta = self.get_meta_ref().get(buffer);
+        u16::from_le_bytes(meta[ID_LEN..META_LEN].try_into().unwrap())
+    }
+
+    /// Returns the packed 5-bit sequence range.
+    #[inline]
+    pub fn get_seq_ref(&self) -> SeqRef {
+        SeqRef {
+            start: self.start + HEADER_LEN as u64,
+            len: self.len - HEADER_LEN as u32,
+        }
+    }
+
+    /// Unpacks the sequence into one-letter codes, reusing `out`.
+    #[inline]
+    pub fn get_seq(&self, buffer: &EntryBuffer, out: &mut Vec<u8>) {
+        let packed = self.get_seq_ref().get(buffer);
+        unpack_into(out, packed.iter().copied());
     }
 }
 
@@ -118,24 +123,21 @@ impl<'a> Iterator for BinEntryIterator<'a> {
     type Item = EntryRef;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.offset >= self.data.len() {
+        if self.offset + SIZE_LEN > self.data.len() {
             return None;
         }
-
         let start = self.offset;
+        let record_size =
+            u32::from_le_bytes(self.data[start..start + SIZE_LEN].try_into().ok()?) as usize;
 
-        let record_size = u32::from_le_bytes(self.data[start..start + 4].try_into().ok()?) as usize;
-
-        let len = 4 + record_size;
-
+        // record_size counts the bytes after itself, so the full record is SIZE_LEN + record_size.
+        let len = SIZE_LEN + record_size;
         let end = start + len;
-
-        if end > self.data.len() {
+        if record_size < HEADER_LEN - SIZE_LEN || end > self.data.len() {
             return None;
         }
 
         self.offset = end;
-
         Some(EntryRef {
             start: start as u64,
             len: len as u32,

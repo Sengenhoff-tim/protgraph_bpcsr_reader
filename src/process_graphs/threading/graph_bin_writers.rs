@@ -12,7 +12,7 @@ use crossbeam_channel::{Receiver, Sender};
 use lru::LruCache;
 use tracing::info;
 
-use crate::process_graphs::io::bin_writer::{open_writer, resolve_path, write_entry_binary};
+use crate::{process_graphs::io::bin_writer::{open_writer, resolve_path, write_entry_binary}, shared::bin_entry::EntryRef};
 use crate::shared::EntryBuffer;
 
 pub fn spawn_writer_manager(
@@ -67,25 +67,19 @@ fn writer_manager_thread(
         let mut completed = 0usize;
         for entry in entry_buff.iter() {
             let path = resolve_path(
-                entry.get_seq(&entry_buff),
+                entry.get_seq_ref().get(&entry_buff),
                 tmp_path,
                 shard_mask,
                 &mut filenames,
             );
-
             let writer = get_writer(&mut writers, &path).context("Failed to open shard file")?;
-
             write_entry_binary(writer, entry.get(&entry_buff))?;
             completed += 1;
         }
         info!("BATCH_COMPLETE for {} entries", completed);
-
         entry_buff.clear();
-
-        //TODO add graceful exit strategy
-        if tx_result_buffer_empty.send(entry_buff).is_err() {
-            continue;
-        }
+        // TODO improve exit
+        let _ = tx_result_buffer_empty.send(entry_buff);
     }
 
     // flush remaining handles

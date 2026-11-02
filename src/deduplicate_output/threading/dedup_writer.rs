@@ -8,7 +8,6 @@ use crate::deduplicate_output::{
 };
 use crate::shared::EntryBuffer;
 
-const META_HEADER_LINE: &str = "ID,ACC,STARTPOS,ENDPOS,MISSCLEAVAGE,QUALIFIERS";
 const CHUNK_SIZE: usize = 256 * 1024;
 
 pub fn spawn_writers(
@@ -23,18 +22,28 @@ pub fn spawn_writers(
         let mut seq_chunk = rx_seq_empty.recv()?;
         let mut meta_chunk = rx_meta_empty.recv()?;
 
-        writeln!(meta_chunk.data, "{}", META_HEADER_LINE)?;
-
         let mut id: u128 = 0;
+        let mut seq_scratch = Vec::new();
 
-        for mut result in rx_entry {
-            let buffer = &mut result.buffer;
-            for (seq, metas) in result.groups {
-                id += 1;
-                write_sequences(&mut seq_chunk.data, id, seq.get(buffer))?;
-                for meta in metas {
-                    write_meta(&mut meta_chunk.data, id, meta.get(buffer))?;
+        for result in rx_entry {
+            let WorkerResult { mut buffer, groups } = result;
+
+            for (seq, metas) in groups {
+                let id_start = id;
+
+                for meta in &metas {
+                    id += 1;
+                    write_meta(&mut meta_chunk.data, meta.get(&buffer))?;
                 }
+
+                write_sequences(
+                    &mut seq_chunk.data,
+                    id_start,
+                    id - id_start,
+                    seq.get(&buffer),
+                    &mut seq_scratch,
+                )?;
+
                 if seq_chunk.data.len() >= CHUNK_SIZE {
                     tx_seq_chunk.send(seq_chunk)?;
                     seq_chunk = rx_seq_empty.recv()?;
@@ -44,13 +53,11 @@ pub fn spawn_writers(
                     meta_chunk = rx_meta_empty.recv()?;
                 }
             }
+
             buffer.clear();
-            if tx_buffer_empty.send(result.buffer).is_err() {
-                continue;
-            }
+            let _ = tx_buffer_empty.send(buffer);
         }
 
-        // flush remaining
         if !seq_chunk.data.is_empty() {
             tx_seq_chunk.send(seq_chunk)?;
         }
@@ -58,7 +65,6 @@ pub fn spawn_writers(
             tx_meta_chunk.send(meta_chunk)?;
         }
 
-        // dropping tx_seq_chunk and tx_meta_chunk here signals compressors to finish
         drop(tx_seq_chunk);
         drop(tx_meta_chunk);
 
