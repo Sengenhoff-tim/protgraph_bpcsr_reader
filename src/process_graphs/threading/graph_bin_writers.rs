@@ -12,7 +12,7 @@ use crossbeam_channel::{Receiver, Sender};
 use lru::LruCache;
 use tracing::info;
 
-use crate::{process_graphs::io::bin_writer::{open_writer, resolve_path, write_entry_binary}, shared::bin_entry::EntryRef};
+use crate::process_graphs::io::bin_writer::{open_writer, resolve_path, write_entry_binary};
 use crate::shared::EntryBuffer;
 
 pub fn spawn_writer_manager(

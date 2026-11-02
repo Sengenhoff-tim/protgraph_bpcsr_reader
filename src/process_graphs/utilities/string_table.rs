@@ -1,10 +1,7 @@
 /// A continuous vector of character bytes for string deduplication.
 /// Strings are accessable by index.
 /// This closely aligns with the original implementation.
-use std::{
-    collections::{HashMap, hash_map::Entry},
-    str,
-};
+use std::collections::{HashMap, hash_map::Entry};
 
 #[repr(C)]
 #[derive(Clone, Copy)]

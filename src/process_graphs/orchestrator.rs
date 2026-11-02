@@ -81,7 +81,7 @@ pub fn process_graphs(config: Config) -> Result<()> {
         rx_result_buffer_empty,
         tx_result_buffer_full,
         batch_target_size,
-        cli.avail_processors as usize,
+        cli.avail_processors,
         Arc::clone(&ctx)
     )?;
 
