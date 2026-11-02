@@ -53,13 +53,11 @@ impl TreeData {
         let edge_end = self.nodes[node_idx] as usize;
 
         for (offset, &edge) in self.ft_clv_edge[edge_begin..edge_end].iter().enumerate() {
-            let edge_idx = edge_begin + offset;
             if let Some((target, cur_var, cur_cleaves, cur_tv)) =
                 self.process_edge(edge, &ctx, &current_state)
             {
                 traversal_state.push(PathState {
                     node: target,
-                    edge: Some(edge_idx as u32),
                     var: cur_var,
                     cleaves: cur_cleaves,
                     tv: cur_tv,

@@ -12,7 +12,6 @@ pub struct TraversalContext {
 #[derive(Debug, Clone, Copy)]
 pub struct PathState {
     pub node: u32,
-    pub edge: Option<u32>,
     pub var: u16,
     pub cleaves: u16,
     pub tv: i64,

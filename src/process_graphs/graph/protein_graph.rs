@@ -23,7 +23,6 @@ impl ProteinGraph {
 
         open.push_back(vec![PathState {
             node: 0,
-            edge: None,
             var: 0,
             cleaves: 0,
             tv: 0,
@@ -42,13 +41,11 @@ impl ProteinGraph {
             let edge_begin = if node == 0 { 0 } else { tree.nodes[node - 1] as usize };
             let edge_end = tree.nodes[node] as usize;
 
-            for (offset, &edge) in tree.ft_clv_edge[edge_begin..edge_end].iter().enumerate() {
-                let edge_idx = edge_begin + offset;
+            for &edge in tree.ft_clv_edge[edge_begin..edge_end].iter() {
                 if let Some((target_node, var, cleaves, tv)) = tree.process_edge(edge, ctx, &tip) {
                     let mut child = path.clone();
                     child.push(PathState {
                         node: target_node,
-                        edge: Some(edge_idx as u32),
                         var,
                         cleaves,
                         tv,

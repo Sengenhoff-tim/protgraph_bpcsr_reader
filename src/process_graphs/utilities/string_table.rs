@@ -20,18 +20,6 @@ pub struct StringTable {
 }
 
 impl StringTable {
-    #[inline(always)]
-    pub fn get_str(&self, idx: usize) -> &str {
-        let r = unsafe { *self.mapping.get_unchecked(idx) };
-
-        unsafe {
-            std::str::from_utf8_unchecked(
-                self.buffer
-                    .get_unchecked(r.start as usize..r.start as usize + r.len as usize),
-            )
-        }
-    }
-
     pub fn get_slice(&self, idx: usize) -> &[u8] {
         let r = unsafe { self.mapping.get_unchecked(idx) };
 

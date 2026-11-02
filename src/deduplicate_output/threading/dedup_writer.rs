@@ -1,4 +1,5 @@
-use std::{io::Write, thread};
+use std::thread;
+
 use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender};
 use crate::deduplicate_output::{

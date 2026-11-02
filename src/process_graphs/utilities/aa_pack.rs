@@ -19,12 +19,6 @@ const CODE: [u8; 256] = {
     table
 };
 
-/// Number of bytes needed to store `n` residues at 5 bits each.
-#[inline]
-pub fn packed_len(n: usize) -> usize {
-    (n * 5).div_ceil(8)
-}
-
 pub fn pack_into<I, B>(buf: &mut Vec<u8>, seq: I) -> Result<()>
 where
     I: IntoIterator<Item = B>,
