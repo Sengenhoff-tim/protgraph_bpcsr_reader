@@ -1,7 +1,5 @@
 // src/entry.rs
 
-use crate::process_graphs::utilities::unpack_into;
-
 pub const SIZE_LEN: usize = 4;
 pub const ID_LEN: usize = 10;
 pub const START_LEN: usize = 2;
@@ -84,19 +82,6 @@ impl EntryRef {
         }
     }
 
-    /// Returns the zero-padded ID bytes.
-    #[inline]
-    pub fn get_id<'a>(&self, buffer: &'a EntryBuffer) -> &'a [u8] {
-        &self.get_meta_ref().get(buffer)[..ID_LEN]
-    }
-
-    /// Returns the start position stored in the record.
-    #[inline]
-    pub fn get_start_position(&self, buffer: &EntryBuffer) -> u16 {
-        let meta = self.get_meta_ref().get(buffer);
-        u16::from_le_bytes(meta[ID_LEN..META_LEN].try_into().unwrap())
-    }
-
     /// Returns the packed 5-bit sequence range.
     #[inline]
     pub fn get_seq_ref(&self) -> SeqRef {
@@ -104,13 +89,6 @@ impl EntryRef {
             start: self.start + HEADER_LEN as u64,
             len: self.len - HEADER_LEN as u32,
         }
-    }
-
-    /// Unpacks the sequence into one-letter codes, reusing `out`.
-    #[inline]
-    pub fn get_seq(&self, buffer: &EntryBuffer, out: &mut Vec<u8>) {
-        let packed = self.get_seq_ref().get(buffer);
-        unpack_into(out, packed.iter().copied());
     }
 }
 

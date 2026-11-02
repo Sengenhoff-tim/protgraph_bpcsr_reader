@@ -52,7 +52,7 @@ impl TreeData {
         let edge_begin = if node_idx == 0 { 0 } else { self.nodes[node_idx - 1] as usize };
         let edge_end = self.nodes[node_idx] as usize;
 
-        for (_offset, &edge) in self.ft_clv_edge[edge_begin..edge_end].iter().enumerate() {
+        for &edge in self.ft_clv_edge[edge_begin..edge_end].iter() {
             if let Some((target, cur_var, cur_cleaves, cur_tv)) =
                 self.process_edge(edge, ctx, &current_state)
             {

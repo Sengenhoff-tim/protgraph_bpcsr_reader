@@ -50,13 +50,13 @@ pub fn read_single_graph<R: BufRead>(num_acc: u32, reader: &mut R) -> Result<Pro
     ))?;
 
     // Position (PO): n_nodes u16 BE
-    let position = read_u16_vec(reader, n_nodes).context(format!(
+    let _position = read_u16_vec(reader, n_nodes).context(format!(
         "reading position for accession '{}'",
         primary_accession
     ))?;
 
     // Iso index (IS): n_nodes u8
-    let iso_index = read_u8_vec(reader, n_nodes).context(format!(
+    let _iso_index = read_u8_vec(reader, n_nodes).context(format!(
         "reading iso index for accession '{}'",
         primary_accession
     ))?;
@@ -85,7 +85,7 @@ pub fn read_single_graph<R: BufRead>(num_acc: u32, reader: &mut R) -> Result<Pro
         ))? != 0) as u16;
     }
 
-    let qualifiers = build_from_reader(reader, n_edges).context(format!(
+    let _qualifiers = build_from_reader(reader, n_edges).context(format!(
         "reading qualifiers for accession '{}'",
         primary_accession
     ))?;
@@ -123,11 +123,8 @@ pub fn read_single_graph<R: BufRead>(num_acc: u32, reader: &mut R) -> Result<Pro
         },
         meta_data: MetaData {
             accessions,
-            position: position.into_boxed_slice(),
-            iso_index: iso_index.into_boxed_slice(),
             iso_position: iso_position.into_boxed_slice(),
             sequences,
-            qualifiers,
         }
     })
 }
