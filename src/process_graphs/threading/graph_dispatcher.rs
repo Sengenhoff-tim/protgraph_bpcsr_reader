@@ -1,20 +1,15 @@
 use std::{
     sync::Arc,
-    thread::{self, JoinHandle}
+    thread::{self, JoinHandle},
 };
 
-use crate::process_graphs::{
-    graph::ProteinGraph, 
-    utilities::TraversalContext
-};
+use crate::process_graphs::{graph::ProteinGraph, utilities::TraversalContext};
 
-use anyhow::{Result};
+use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender};
 use tracing::info;
 
-use crate::process_graphs::utilities::{
-    types::{TraversalJob},
-};
+use crate::process_graphs::utilities::types::TraversalJob;
 
 pub fn spawn_graph_dispatcher(
     rx_graphs: Receiver<ProteinGraph>,
@@ -31,7 +26,7 @@ pub fn spawn_graph_dispatcher(
 
             info!("TRAVERSAL start for {}", graph.meta_data.accessions[0]);
 
-             let frontier = graph.build_frontier(&ctx, jobs_per_graph);
+            let frontier = graph.build_frontier(&ctx, jobs_per_graph);
 
             info!(
                 "FRONTIER for {}: {} jobs",
@@ -44,10 +39,7 @@ pub fn spawn_graph_dispatcher(
             }
         }
 
-        info!(
-            "INPUT read complete: {} graphs",
-            total_graphs
-        );
+        info!("INPUT read complete: {} graphs", total_graphs);
         Ok(())
     })
 }

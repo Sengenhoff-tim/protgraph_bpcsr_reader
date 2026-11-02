@@ -1,13 +1,13 @@
-use anyhow::{Result, anyhow, bail};
-use crossbeam_channel::{bounded, unbounded};
-use std::fs::{read_dir, File};
-use std::path::{Path, PathBuf};
 use crate::deduplicate_output::chunk_buffer::ChunkBuffer;
 use crate::deduplicate_output::threading::dedup_workers::WorkerResult;
 use crate::deduplicate_output::threading::{
-    spawn_compressor, spawn_dispatcher, spawn_worker, spawn_writers
+    spawn_compressor, spawn_dispatcher, spawn_worker, spawn_writers,
 };
 use crate::shared::EntryBuffer;
+use anyhow::{Result, anyhow, bail};
+use crossbeam_channel::{bounded, unbounded};
+use std::fs::{File, read_dir};
+use std::path::{Path, PathBuf};
 
 const GIB: u64 = 1024 * 1024 * 1024;
 const CHUNK_SIZE: usize = 256 * 1024;
@@ -61,8 +61,16 @@ pub fn dedup_bin_files(
     }
 
     std::fs::create_dir_all(outdir)?;
-    let seq_file = File::create(outdir.join(if zip { "peptides.fasta.gz" } else { "peptides.fasta" }))?;
-    let meta_file = File::create(outdir.join(if zip { "metadata.csv.gz" } else { "metadata.csv" }))?;
+    let seq_file = File::create(outdir.join(if zip {
+        "peptides.fasta.gz"
+    } else {
+        "peptides.fasta"
+    }))?;
+    let meta_file = File::create(outdir.join(if zip {
+        "metadata.csv.gz"
+    } else {
+        "metadata.csv"
+    }))?;
 
     let seq_compressor = spawn_compressor(rx_seq_chunk, tx_seq_empty, seq_file, zip);
     let meta_compressor = spawn_compressor(rx_meta_chunk, tx_meta_empty, meta_file, zip);

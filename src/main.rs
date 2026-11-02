@@ -14,10 +14,10 @@ mod tests;
 static GLOBAL: MiMalloc = MiMalloc;
 
 use crate::{
-    deduplicate_output::dedup_bin_files, 
-    parameters::Config, 
+    deduplicate_output::dedup_bin_files,
+    parameters::Config,
     process_graphs::process_graphs,
-    shared::{init_logging, LoggingConfig}
+    shared::{LoggingConfig, init_logging},
 };
 
 /// Reads BPCSR files produced by ProtGraph and generates:

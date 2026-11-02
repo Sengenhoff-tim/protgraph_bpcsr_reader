@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::borrow::Borrow;
 
 /// Code 0 is the filler. Residues use codes 1..=20.

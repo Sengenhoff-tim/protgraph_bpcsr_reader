@@ -1,7 +1,8 @@
 use std::{collections::HashMap, io::Read, path::PathBuf};
 
 use crate::shared::{
-    EntryBuffer, bin_entry::{MetaRef, SeqRef},
+    EntryBuffer,
+    bin_entry::{MetaRef, SeqRef},
 };
 use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender};

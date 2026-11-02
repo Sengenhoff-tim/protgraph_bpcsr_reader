@@ -1,25 +1,28 @@
 use std::{
-    fs::{File, create_dir_all}, io::BufReader, sync::{Arc}
+    fs::{File, create_dir_all},
+    io::BufReader,
+    sync::Arc,
 };
 
 use anyhow::{Context, Result, anyhow};
 use crossbeam_channel::{bounded, unbounded};
 
 use crate::{
-    parameters::Config, process_graphs::{
-        graph::ProteinGraph, threading::{
-            spawn_graph_dispatcher, spawn_protein_graph_reader, spawn_workers, spawn_writer_manager
-        }, utilities::{
-            TraversalContext, types::{TraversalJob}
-        }
-    }, shared::EntryBuffer
+    parameters::Config,
+    process_graphs::{
+        graph::ProteinGraph,
+        threading::{
+            spawn_graph_dispatcher, spawn_protein_graph_reader, spawn_workers, spawn_writer_manager,
+        },
+        utilities::{TraversalContext, types::TraversalJob},
+    },
+    shared::EntryBuffer,
 };
 
 const GIB: u64 = 1024 * 1024 * 1024;
 
 /// main graph processing workflow
 pub fn process_graphs(config: Config) -> Result<()> {
-
     // config
     let cli = &config.cli;
 
@@ -49,7 +52,8 @@ pub fn process_graphs(config: Config) -> Result<()> {
     let (tx_result_buffer_empty, rx_result_buffer_empty) = bounded::<EntryBuffer>(ch_proc_out_size);
     let (tx_result_buffer_full, rx_result_buffer_full) = unbounded::<EntryBuffer>();
 
-    let batch_target_size = ((cli.avail_memory as u64 * GIB) / 10 / ch_proc_out_size as u64) as usize;
+    let batch_target_size =
+        ((cli.avail_memory as u64 * GIB) / 10 / ch_proc_out_size as u64) as usize;
 
     for _ in 0..ch_proc_out_size {
         tx_result_buffer_empty.send(EntryBuffer::with_capacity(batch_target_size))?;
@@ -68,13 +72,11 @@ pub fn process_graphs(config: Config) -> Result<()> {
         cli.max_handles,
     )?;
 
-    let ctx = Arc::new(
-        TraversalContext{
-            max_variants: cli.max_vars,
-            max_missed_cleavages: cli.max_cleavages,
-            intervals: config.intervals
-        }
-    );
+    let ctx = Arc::new(TraversalContext {
+        max_variants: cli.max_vars,
+        max_missed_cleavages: cli.max_cleavages,
+        intervals: config.intervals,
+    });
 
     let worker_handles = spawn_workers(
         rx_jobs,
@@ -82,15 +84,10 @@ pub fn process_graphs(config: Config) -> Result<()> {
         tx_result_buffer_full,
         batch_target_size,
         cli.avail_processors,
-        Arc::clone(&ctx)
+        Arc::clone(&ctx),
     )?;
 
-    let graph_handle = spawn_graph_dispatcher(
-        rx_graphs,
-        tx_jobs,
-        ctx,
-        10*cli.avail_processors
-    );
+    let graph_handle = spawn_graph_dispatcher(rx_graphs, tx_jobs, ctx, 10 * cli.avail_processors);
 
     let graph = File::open(&cli.graph_input_path)?;
     let reader_for_graph = BufReader::new(graph);

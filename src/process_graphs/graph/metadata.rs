@@ -15,7 +15,7 @@ const START_LEN: usize = 2;
 impl MetaData {
     //  record layout (little-endian):
     // - u32 record size
-    // - 10*char bytes id 
+    // - 10*char bytes id
     // - u16 start position
     // - 5-bit packed sequence, 0-padded
     pub fn build_peptide(
@@ -45,9 +45,7 @@ impl MetaData {
         entry_buffer.reserve(record_size as usize);
         entry_buffer.extend_from_slice(&record_size.to_le_bytes());
         entry_buffer.extend_from_slice(&id);
-        entry_buffer.extend_from_slice(
-            &self.iso_position[trace[1].node as usize].to_le_bytes(),
-        );
+        entry_buffer.extend_from_slice(&self.iso_position[trace[1].node as usize].to_le_bytes());
         entry_buffer.extend_from_slice(sequence_buffer);
 
         Ok(())

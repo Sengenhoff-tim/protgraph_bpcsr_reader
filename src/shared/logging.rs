@@ -1,5 +1,5 @@
-use std::fs::File;
 use anyhow::{Context, Result};
+use std::fs::File;
 use tracing_subscriber::Layer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -22,7 +22,7 @@ pub fn init_logging(config: LoggingConfig) -> Result<tracing_appender::non_block
     let log_file = File::create(&config.file_path)
         .with_context(|| format!("failed to create log file '{}'", config.file_path))?;
     let (non_blocking, guard) = tracing_appender::non_blocking(log_file);
-    
+
     let file_layer = tracing_subscriber::fmt::layer()
         .with_writer(non_blocking)
         .with_ansi(false)

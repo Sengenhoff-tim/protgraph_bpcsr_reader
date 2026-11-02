@@ -1,6 +1,4 @@
-use anyhow::{
-    Result,
-};
+use anyhow::Result;
 use clap::Parser;
 
 use crate::parameters::Cli;

@@ -1,9 +1,13 @@
-use std::{fs::File, io::{BufWriter, Write}, thread};
+use crate::deduplicate_output::chunk_buffer::ChunkBuffer;
+use crate::deduplicate_output::io::WriterWrapper;
 use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender};
 use flate2::{Compression, write::GzEncoder};
-use crate::deduplicate_output::chunk_buffer::ChunkBuffer;
-use crate::deduplicate_output::io::WriterWrapper;
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+    thread,
+};
 
 pub fn spawn_compressor(
     rx_chunk: Receiver<ChunkBuffer>,
@@ -28,7 +32,9 @@ pub fn spawn_compressor(
         writer.flush()?;
         let inner: WriterWrapper<File> = writer.into_inner().unwrap();
         match inner {
-            WriterWrapper::Compressed(enc) => { enc.finish()?; }
+            WriterWrapper::Compressed(enc) => {
+                enc.finish()?;
+            }
             WriterWrapper::Uncompressed(_) => {}
         }
         Ok(())

@@ -4,4 +4,4 @@ pub use bin_entry::EntryBuffer;
 
 /// bin entry is shared between processing and deduplication
 pub mod logging;
-pub use logging::{init_logging, LoggingConfig};
+pub use logging::{LoggingConfig, init_logging};

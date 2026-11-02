@@ -1,13 +1,13 @@
 use std::thread;
 
-use anyhow::Result;
-use crossbeam_channel::{Receiver, Sender};
 use crate::deduplicate_output::{
     chunk_buffer::ChunkBuffer,
     io::{write_meta, write_sequences},
     threading::dedup_workers::WorkerResult,
 };
 use crate::shared::EntryBuffer;
+use anyhow::Result;
+use crossbeam_channel::{Receiver, Sender};
 
 const CHUNK_SIZE: usize = 256 * 1024;
 

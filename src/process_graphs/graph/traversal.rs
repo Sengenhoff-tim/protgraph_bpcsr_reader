@@ -1,8 +1,6 @@
 use anyhow::Result;
 
-use crate::process_graphs::{
-    utilities::{FtClvEdge, PathState, Pdbs, TraversalContext},
-};
+use crate::process_graphs::utilities::{FtClvEdge, PathState, Pdbs, TraversalContext};
 
 /// relevant information for traversal
 pub struct TreeData {
@@ -13,8 +11,12 @@ pub struct TreeData {
 }
 
 impl TreeData {
-    pub fn process_edge(&self, edge: FtClvEdge, ctx: &TraversalContext, current: &PathState) -> Option<(u32, u16, u16, i64)> {
-
+    pub fn process_edge(
+        &self,
+        edge: FtClvEdge,
+        ctx: &TraversalContext,
+        current: &PathState,
+    ) -> Option<(u32, u16, u16, i64)> {
         let cur_cleaves = current.cleaves + edge.cleaves;
         if cur_cleaves > ctx.max_missed_cleavages {
             return None;
@@ -28,7 +30,10 @@ impl TreeData {
         let target = edge.edge;
         let cur_tv = current.tv + self.mono_weight[target as usize];
 
-        if self.pdbs.has_overlapping_interval(target as usize, &ctx.intervals, cur_tv) {
+        if self
+            .pdbs
+            .has_overlapping_interval(target as usize, &ctx.intervals, cur_tv)
+        {
             return Some((target, cur_var, cur_cleaves, cur_tv));
         }
         None
@@ -40,7 +45,9 @@ impl TreeData {
         traversal_state: &mut Vec<PathState>,
         on_complete: &mut impl FnMut(&[PathState]) -> Result<()>,
     ) -> Result<()> {
-        let current_state = *traversal_state.last().expect("path must contain at least the root");
+        let current_state = *traversal_state
+            .last()
+            .expect("path must contain at least the root");
         let node_idx = current_state.node as usize;
         let last_idx = self.nodes.len() - 1;
 
@@ -49,7 +56,11 @@ impl TreeData {
             return Ok(());
         }
 
-        let edge_begin = if node_idx == 0 { 0 } else { self.nodes[node_idx - 1] as usize };
+        let edge_begin = if node_idx == 0 {
+            0
+        } else {
+            self.nodes[node_idx - 1] as usize
+        };
         let edge_end = self.nodes[node_idx] as usize;
 
         for &edge in self.ft_clv_edge[edge_begin..edge_end].iter() {

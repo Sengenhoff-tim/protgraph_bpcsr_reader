@@ -29,4 +29,3 @@ pub struct FtClvEdge {
     pub cleaves: u16,
     pub edge: u32,
 }
-

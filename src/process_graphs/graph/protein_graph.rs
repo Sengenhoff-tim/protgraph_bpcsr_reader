@@ -38,7 +38,11 @@ impl ProteinGraph {
             }
 
             let node = tip.node as usize;
-            let edge_begin = if node == 0 { 0 } else { tree.nodes[node - 1] as usize };
+            let edge_begin = if node == 0 {
+                0
+            } else {
+                tree.nodes[node - 1] as usize
+            };
             let edge_end = tree.nodes[node] as usize;
 
             for &edge in tree.ft_clv_edge[edge_begin..edge_end].iter() {
