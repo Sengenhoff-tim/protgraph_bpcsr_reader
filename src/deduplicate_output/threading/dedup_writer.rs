@@ -39,7 +39,7 @@ pub fn spawn_writers(
                 write_sequences(
                     &mut seq_chunk.data,
                     id_start,
-                    id - id_start,
+                    id - id_start - 1,
                     seq.get(&buffer),
                     &mut seq_scratch,
                 )?;
