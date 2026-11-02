@@ -8,15 +8,11 @@ use anyhow::{Context, Result, anyhow};
 use crossbeam_channel::{bounded, unbounded};
 
 use crate::{
-    parameters::Config,
-    process_graphs::{
-        graph::ProteinGraph,
-        threading::{
-            spawn_graph_dispatcher, spawn_protein_graph_reader, spawn_workers, spawn_writer_manager,
-        },
-        utilities::{TraversalContext, types::TraversalJob},
-    },
-    shared::EntryBuffer,
+    parameters::Config, process_graphs::{
+        graph::ProteinGraph, threading::{
+            graph_dispatcher::spawn_dispatchers, spawn_protein_graph_reader, spawn_workers, spawn_writer_manager,
+        }, utilities::{TraversalContext, types::TraversalJob},
+    }, shared::EntryBuffer,
 };
 
 const GIB: u64 = 1024 * 1024 * 1024;
@@ -38,7 +34,7 @@ pub fn process_graphs(config: Config) -> Result<()> {
 
     // graph channel: graph_reader -> dispatcher
 
-    let graph_capacity = cli.ch_proc_in_size.unwrap_or(2);
+    let graph_capacity = cli.ch_proc_in_size.unwrap_or(cli.avail_processors * 2);
     let (tx_graphs, rx_graphs) = bounded::<ProteinGraph>(graph_capacity);
 
     // job channel: dispatcher -> worker pool
@@ -87,7 +83,7 @@ pub fn process_graphs(config: Config) -> Result<()> {
         Arc::clone(&ctx),
     )?;
 
-    let graph_handle = spawn_graph_dispatcher(rx_graphs, tx_jobs, ctx, 10 * cli.avail_processors);
+    let graph_handles = spawn_dispatchers(rx_graphs, tx_jobs,  cli.avail_processors, 10*cli.avail_processors, ctx)?;
 
     let graph = File::open(&cli.graph_input_path)?;
     let reader_for_graph = BufReader::new(graph);
@@ -102,10 +98,12 @@ pub fn process_graphs(config: Config) -> Result<()> {
         .map_err(|e| anyhow!("reader thread panicked: {:?}", e))?
         .context("reader thread failed")?;
 
-    graph_handle
-        .join()
-        .map_err(|e| anyhow!("graph thread panicked: {:?}", e))?
-        .context("graph thread failed")?;
+    for handle in graph_handles {
+        handle
+            .join()
+            .map_err(|_| anyhow::anyhow!("dispatcher panicked"))?
+            .with_context(|| "dispatcher thread failed")?;
+    }
 
     for handle in worker_handles {
         handle
