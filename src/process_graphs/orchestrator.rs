@@ -8,11 +8,16 @@ use anyhow::{Context, Result, anyhow};
 use crossbeam_channel::{bounded, unbounded};
 
 use crate::{
-    parameters::Config, process_graphs::{
-        graph::ProteinGraph, threading::{
-            graph_dispatcher::spawn_dispatchers, spawn_protein_graph_reader, spawn_workers, spawn_writer_manager,
-        }, utilities::{TraversalContext, types::TraversalJob},
-    }, shared::EntryBuffer,
+    parameters::Config,
+    process_graphs::{
+        graph::ProteinGraph,
+        threading::{
+            graph_dispatcher::spawn_dispatchers, spawn_protein_graph_reader, spawn_workers,
+            spawn_writer_manager,
+        },
+        utilities::{TraversalContext, types::TraversalJob},
+    },
+    shared::EntryBuffer,
 };
 
 const GIB: u64 = 1024 * 1024 * 1024;
@@ -83,7 +88,13 @@ pub fn process_graphs(config: Config) -> Result<()> {
         Arc::clone(&ctx),
     )?;
 
-    let graph_handles = spawn_dispatchers(rx_graphs, tx_jobs,  cli.avail_processors, 10*cli.avail_processors, ctx)?;
+    let graph_handles = spawn_dispatchers(
+        rx_graphs,
+        tx_jobs,
+        cli.avail_processors,
+        10 * cli.avail_processors,
+        ctx,
+    )?;
 
     let graph = File::open(&cli.graph_input_path)?;
     let reader_for_graph = BufReader::new(graph);

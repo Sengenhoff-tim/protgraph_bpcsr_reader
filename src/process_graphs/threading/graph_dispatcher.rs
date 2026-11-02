@@ -42,22 +42,22 @@ pub fn spawn_graph_dispatcher(
     ctx: Arc<TraversalContext>,
     jobs_per_graph: usize,
 ) -> Result<()> {
-        for graph in rx_graphs {
-            let graph = Arc::new(graph);
+    for graph in rx_graphs {
+        let graph = Arc::new(graph);
 
-            info!("TRAVERSAL start for {}", graph.meta_data.accessions[0]);
+        info!("TRAVERSAL start for {}", graph.meta_data.accessions[0]);
 
-            let frontier = graph.build_frontier(&ctx, jobs_per_graph);
+        let frontier = graph.build_frontier(&ctx, jobs_per_graph);
 
-            info!(
-                "FRONTIER for {}: {} jobs",
-                graph.meta_data.accessions[0],
-                frontier.len()
-            );
+        info!(
+            "FRONTIER for {}: {} jobs",
+            graph.meta_data.accessions[0],
+            frontier.len()
+        );
 
-            for job in frontier {
-                tx_jobs.send(job)?;
-            }
+        for job in frontier {
+            tx_jobs.send(job)?;
         }
-        Ok(())
     }
+    Ok(())
+}

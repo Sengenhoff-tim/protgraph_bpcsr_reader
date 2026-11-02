@@ -29,7 +29,7 @@ pub fn spawn_protein_graph_reader<R: BufRead + Send + 'static>(
                     break;
                 }
             };
-            
+
             total_graphs += 1;
 
             let pg = read_single_graph(num_acc, &mut rdr)?;
