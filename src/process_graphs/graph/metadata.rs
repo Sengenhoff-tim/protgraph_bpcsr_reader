@@ -44,7 +44,7 @@ impl MetaData {
         let mut id = [0u8; ID_LEN];
         id[..self.accessions[0].len()].copy_from_slice(self.accessions[0].as_bytes());
 
-        let record_size = u32::try_from(SIZE_LEN + sequence_buffer.len() + ID_LEN + START_LEN)?;
+        let record_size = u32::try_from(ID_LEN + START_LEN + sequence_buffer.len())?;
 
         entry_buffer.reserve(record_size as usize);
         entry_buffer.extend_from_slice(&record_size.to_le_bytes());

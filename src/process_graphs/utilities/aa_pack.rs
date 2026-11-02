@@ -5,8 +5,8 @@ use std::borrow::Borrow;
 const FILLER: u8 = 0;
 const INVALID: u8 = u8::MAX;
 
-/// Index = 5-bit code. Entry 0 is the filler and is never emitted as a residue.
-const AA_ALPHABET: &[u8; 21] = b"\0ACDEFGHIKLMNPQRSTVWY";
+/// Index = 5-bit code. 0 is the filler and is never emitted as a residue.
+const AA_ALPHABET: &[u8; 27] = b"\0ACDEFGHIKLMNPQRSTVWYBZXUOJ";
 
 /// Maps an ASCII byte to its 5-bit code. Anything else maps to INVALID.
 const CODE: [u8; 256] = {
