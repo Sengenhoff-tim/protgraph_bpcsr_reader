@@ -13,11 +13,11 @@ use crate::{
         graph::ProteinGraph,
         threading::{
             graph_dispatcher::spawn_dispatchers, spawn_protein_graph_reader, spawn_workers,
-            spawn_writer_manager,
+            spawn_writer_managers,
         },
         utilities::{TraversalContext, types::TraversalJob},
     },
-    shared::EntryBuffer,
+    shared::MemBuffer,
 };
 
 const GIB: u64 = 1024 * 1024 * 1024;
@@ -37,27 +37,28 @@ pub fn process_graphs(config: Config) -> Result<()> {
     // set up channels
     // ---------------------------------------------------------------------------
 
-    // graph channel: graph_reader -> dispatcher
+    let channel_size = cli.avail_processors * 2;
 
-    let graph_capacity = cli.ch_proc_in_size.unwrap_or(cli.avail_processors * 2);
-    let (tx_graphs, rx_graphs) = bounded::<ProteinGraph>(graph_capacity);
+
+
+    // graph channel: graph_reader -> dispatcher
+    let (tx_graphs, rx_graphs) = bounded::<ProteinGraph>(channel_size);
 
     // job channel: dispatcher -> worker pool
+    let (tx_jobs, rx_jobs) = bounded::<TraversalJob>(channel_size);
 
-    let job_capacity = cli.ch_proc_query_size.unwrap_or(cli.avail_processors * 2);
-    let (tx_jobs, rx_jobs) = bounded::<TraversalJob>(job_capacity);
+    // mixed output buffer pool: worker pool -> writer manager
+    let (tx_result_buffer_empty, rx_result_buffer_empty) = bounded::<MemBuffer>(channel_size);
 
-    // ouput buffer pool: worker pool -> writer
-
-    let ch_proc_out_size = cli.ch_proc_out_size.unwrap_or(cli.avail_processors * 2);
-    let (tx_result_buffer_empty, rx_result_buffer_empty) = bounded::<EntryBuffer>(ch_proc_out_size);
-    let (tx_result_buffer_full, rx_result_buffer_full) = unbounded::<EntryBuffer>();
+    let (txs_filled, rx_filled): (Vec<_>, Vec<_>) = (0..2*cli.avail_processors)
+        .map(|_| unbounded::<MemBuffer>())
+        .unzip();
 
     let batch_target_size =
-        ((cli.avail_memory as u64 * GIB) / 10 / ch_proc_out_size as u64) as usize;
+        ((cli.avail_memory as u64 * GIB) / 10 / channel_size as u64) as usize;
 
-    for _ in 0..ch_proc_out_size {
-        tx_result_buffer_empty.send(EntryBuffer::with_capacity(batch_target_size))?;
+    for _ in 0..channel_size {
+        tx_result_buffer_empty.send(MemBuffer::with_capacity(batch_target_size))?;
     }
 
     // ---------------------------------------------------------------------------
@@ -65,12 +66,12 @@ pub fn process_graphs(config: Config) -> Result<()> {
     // ---------------------------------------------------------------------------
 
     // spawn intermediate file writer
-    let bin_writer_handle = spawn_writer_manager(
-        rx_result_buffer_full,
+    let bin_writer_handles = spawn_writer_managers(
+        rx_filled,
         tx_result_buffer_empty,
         out_dir,
-        cli.hash_bits,
         cli.max_handles,
+        cli.avail_memory,
     )?;
 
     let ctx = Arc::new(TraversalContext {
@@ -82,7 +83,7 @@ pub fn process_graphs(config: Config) -> Result<()> {
     let worker_handles = spawn_workers(
         rx_jobs,
         rx_result_buffer_empty,
-        tx_result_buffer_full,
+        txs_filled,
         batch_target_size,
         cli.avail_processors,
         Arc::clone(&ctx),
@@ -123,10 +124,12 @@ pub fn process_graphs(config: Config) -> Result<()> {
             .with_context(|| "worker thread failed")?;
     }
 
-    bin_writer_handle
-        .join()
-        .map_err(|e| anyhow!("bin writer thread panicked: {:?}", e))?
-        .context("bin writer thread failed")?;
-
+    for handle in bin_writer_handles {
+        handle
+            .join()
+            .map_err(|e| anyhow!("bin writer thread panicked: {:?}", e))?
+            .context("bin writer thread failed")?;
+    }
+        
     Ok(())
 }

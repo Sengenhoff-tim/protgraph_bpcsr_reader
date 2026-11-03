@@ -3,7 +3,7 @@ use crate::deduplicate_output::threading::dedup_workers::WorkerResult;
 use crate::deduplicate_output::threading::{
     spawn_compressor, spawn_dispatcher, spawn_worker, spawn_writers,
 };
-use crate::shared::EntryBuffer;
+use crate::shared::DiskBuffer;
 use anyhow::{Result, anyhow, bail};
 use crossbeam_channel::{bounded, unbounded};
 use std::fs::{File, read_dir};
@@ -41,9 +41,9 @@ pub fn dedup_bin_files(
     // file buffer pool
     let (tx_file, rx_file) = bounded::<PathBuf>(worker_thread_count as usize * 2);
     let (tx_entry, rx_entry) = bounded::<WorkerResult>(channel_bin_input as usize);
-    let (tx_buffer_empty, rx_buffer_empty) = unbounded::<EntryBuffer>();
+    let (tx_buffer_empty, rx_buffer_empty) = unbounded::<DiskBuffer>();
     for _ in 0..channel_bin_input {
-        tx_buffer_empty.send(EntryBuffer::with_capacity(max_file_size as usize))?;
+        tx_buffer_empty.send(DiskBuffer::with_capacity(max_file_size as usize))?;
     }
 
     // seq compressor channels

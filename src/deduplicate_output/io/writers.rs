@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::Result;
 
-use crate::{process_graphs::utilities::unpack_into, shared::bin_entry::META_LEN};
+use crate::process_graphs::utilities::unpack_into;
 
 pub fn write_sequences<W: Write>(
     writer: &mut W,
@@ -23,8 +23,11 @@ pub fn write_sequences<W: Write>(
     Ok(())
 }
 
-pub fn write_meta<W: Write>(writer: &mut W, meta: &[u8]) -> Result<()> {
-    // meta = ID (ID_LEN bytes, zero-padded) followed by start position (START_LEN bytes, LE)
-    writer.write_all(&meta[..META_LEN])?;
+/// Writes one meta as its raw id (trailing zero padding removed) followed by
+/// its position as a little-endian u16.
+pub fn write_meta<W: Write>(writer: &mut W, id: &[u8], pos: u16) -> Result<()> {
+    let end = id.iter().rposition(|&b| b != 0).map_or(0, |i| i + 1);
+    writer.write_all(&id[..end])?;
+    writer.write_all(&pos.to_le_bytes())?;
     Ok(())
 }

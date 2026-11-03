@@ -5,15 +5,16 @@ use crate::deduplicate_output::{
     io::{write_meta, write_sequences},
     threading::dedup_workers::WorkerResult,
 };
-use crate::shared::EntryBuffer;
 use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender};
+
+use crate::shared::DiskBuffer;
 
 const CHUNK_SIZE: usize = 256 * 1024;
 
 pub fn spawn_writers(
     rx_entry: Receiver<WorkerResult>,
-    tx_buffer_empty: Sender<EntryBuffer>,
+    tx_buffer_empty: Sender<DiskBuffer>,
     tx_seq_chunk: Sender<ChunkBuffer>,
     tx_meta_chunk: Sender<ChunkBuffer>,
     rx_seq_empty: Receiver<ChunkBuffer>,
@@ -29,19 +30,20 @@ pub fn spawn_writers(
         for result in rx_entry {
             let WorkerResult { mut buffer, groups } = result;
 
-            for (seq, metas) in groups {
+            for group in &groups {
                 let id_start = id;
 
-                for meta in &metas {
+                for (meta_id, pos) in &group.metas {
                     id += 1;
-                    write_meta(&mut meta_chunk.data, meta.get(&buffer))?;
+                    write_meta(&mut meta_chunk.data, meta_id, *pos)?;
                 }
 
+                let seq = &buffer.as_bytes()[group.seq_start..group.seq_start + group.seq_len];
                 write_sequences(
                     &mut seq_chunk.data,
                     id_start,
                     id - id_start - 1,
-                    seq.get(&buffer),
+                    seq,
                     &mut seq_scratch,
                 )?;
 
