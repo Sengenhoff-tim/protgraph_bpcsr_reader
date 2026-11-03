@@ -116,10 +116,18 @@ fn max_file_size(indir: &PathBuf) -> Result<u64> {
     for entry in read_dir(indir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.is_file() {
-            found = true;
-            let size = entry.metadata()?.len();
-            max_size = max_size.max(size);
+        if !path.is_dir() {
+            continue;
+        }
+        for shard in read_dir(&path)? {
+            let shard = shard?;
+            let shard_path = shard.path();
+            if shard_path.is_file()
+                && shard_path.extension().is_some_and(|e| e == "zst")
+            {
+                found = true;
+                max_size = max_size.max(shard.metadata()?.len());
+            }
         }
     }
     if !found {

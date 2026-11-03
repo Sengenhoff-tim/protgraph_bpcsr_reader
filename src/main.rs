@@ -6,6 +6,7 @@ mod process_graphs;
 mod shared;
 
 use mimalloc::MiMalloc;
+use tracing::info;
 
 #[cfg(test)]
 mod tests;
@@ -35,8 +36,12 @@ fn main() -> Result<()> {
 
     let memory = config.cli.avail_memory;
 
+    info!("PROCESSING graphs");
+
     // read graphs and produce intermediate files
     process_graphs(config)?;
+
+    info!("FINISHED processing graphs");
 
     // read intermediate files and write deduplicated output
     let tmp_path = outdir_path.join("tmp");
@@ -47,6 +52,7 @@ fn main() -> Result<()> {
         .unwrap_or(false);
 
     if has_input_files {
+        info!("DEDUBlICATION start");
         dedup_bin_files(
             avail_processors as u64,
             memory as u64,
