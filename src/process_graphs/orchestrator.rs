@@ -21,6 +21,7 @@ use crate::{
 };
 
 const GIB: u64 = 1024 * 1024 * 1024;
+const MIN_BATCH_BYTES: usize = 64 * 1024;
 
 /// main graph processing workflow
 pub fn process_graphs(config: Config) -> Result<()> {
@@ -47,20 +48,24 @@ pub fn process_graphs(config: Config) -> Result<()> {
     // job channel: dispatcher -> worker pool
     let (tx_jobs, rx_jobs) = bounded::<TraversalJob>(channel_size);
 
-    // mixed output buffer pool: worker pool -> writer manager
+    // mixed output buffer pool: worker pool -> writers
     let (tx_result_buffer_empty, rx_result_buffer_empty) = bounded::<MemBuffer>(channel_size);
 
     let (txs_filled, rx_filled): (Vec<_>, Vec<_>) = (0..2*cli.avail_processors)
         .map(|_| unbounded::<MemBuffer>())
         .unzip();
 
-    let batch_target_size =
-        ((cli.avail_memory as u64 * GIB) / 10 / channel_size as u64) as usize;
+    let needed = cli.avail_processors * cli.avail_processors + cli.avail_processors * 2;
+
+    // Spread the memory budget (avail_memory / 10) across all buffers.
+    let budget = (cli.avail_memory as u64 * GIB / 10) as usize;
+    let batch_target_size = (budget / needed).max(MIN_BATCH_BYTES);
+
+    let channel_size = needed;
 
     for _ in 0..channel_size {
         tx_result_buffer_empty.send(MemBuffer::with_capacity(batch_target_size))?;
     }
-
     // ---------------------------------------------------------------------------
     // spawn threads
     // ---------------------------------------------------------------------------
