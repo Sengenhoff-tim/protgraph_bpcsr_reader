@@ -53,10 +53,6 @@ impl Slot {
         Ok(())
     }
 }
-
-/// Opens all shard files up front and spawns one writer per channel.
-/// `max_memory` (bytes) is split across every buffer in the system; each
-/// buffer's target size comes from that split.
 pub fn spawn_writer_managers(
     rx_filled: Vec<Receiver<MemBuffer>>,
     tx_empty: Sender<MemBuffer>,
@@ -64,14 +60,10 @@ pub fn spawn_writer_managers(
     max_handles: Option<u32>,
     max_memory: usize,
 ) -> Result<Vec<JoinHandle<Result<(), Error>>>> {
-    ensure!(
-        rx_filled.len() == tx_empty.len(),
-        "rx/tx writer channel count mismatch"
-    );
-    let n_writers = rx_filled.len().max(1);
+    let n_writers = rx_filled.len();
+    ensure!(n_writers > 0, "no writer channels");
 
     let budget = max_handles.unwrap_or_else(get_sys_open_files).max(1) as usize;
-    ensure!(budget >= n_writers, "handle budget smaller than writer count");
 
     // Total buffers = slots * 2. Each buffer gets an equal share of max_memory.
     let total_buffers = budget * 2;
