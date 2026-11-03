@@ -38,34 +38,28 @@ pub fn process_graphs(config: Config) -> Result<()> {
     // set up channels
     // ---------------------------------------------------------------------------
 
-    let channel_size = cli.avail_processors * 2;
+    let threads = cli.avail_processors;
+    let n_writers = 2 * threads;
 
+    // graph and job channels: dispatcher pipeline depth
+    let queue_depth = threads * 2;
+    let (tx_graphs, rx_graphs) = bounded::<ProteinGraph>(queue_depth);
+    let (tx_jobs, rx_jobs) = bounded::<TraversalJob>(queue_depth);
 
-
-    // graph channel: graph_reader -> dispatcher
-    let (tx_graphs, rx_graphs) = bounded::<ProteinGraph>(channel_size);
-
-    // job channel: dispatcher -> worker pool
-    let (tx_jobs, rx_jobs) = bounded::<TraversalJob>(channel_size);
-
-    // mixed output buffer pool: worker pool -> writers
-    let (tx_result_buffer_empty, rx_result_buffer_empty) = bounded::<MemBuffer>(channel_size);
-
-    let (txs_filled, rx_filled): (Vec<_>, Vec<_>) = (0..2*cli.avail_processors)
-        .map(|_| unbounded::<MemBuffer>())
-        .unzip();
-
-    let needed = cli.avail_processors * cli.avail_processors + cli.avail_processors * 2;
-
-    // Spread the memory budget (avail_memory / 10) across all buffers.
+    // buffer pool sizing: each traversal thread holds one buffer per writer,
+    // plus a spare per writer so writers always have one to return into
+    let pool_size = threads * n_writers + n_writers;
     let budget = (cli.avail_memory as u64 * GIB / 10) as usize;
-    let batch_target_size = (budget / needed).max(MIN_BATCH_BYTES);
+    let batch_target_size = (budget / pool_size).max(MIN_BATCH_BYTES);
 
-    let channel_size = needed;
-
-    for _ in 0..channel_size {
+    let (tx_result_buffer_empty, rx_result_buffer_empty) = bounded::<MemBuffer>(pool_size);
+    for _ in 0..pool_size {
         tx_result_buffer_empty.send(MemBuffer::with_capacity(batch_target_size))?;
     }
+
+    let (txs_filled, rx_filled): (Vec<_>, Vec<_>) = (0..n_writers)
+        .map(|_| unbounded::<MemBuffer>())
+        .unzip();
     // ---------------------------------------------------------------------------
     // spawn threads
     // ---------------------------------------------------------------------------
