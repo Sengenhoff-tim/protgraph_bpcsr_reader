@@ -102,7 +102,7 @@ pub fn spawn_writer_managers(
         .enumerate()
         .map(|(idx, (rx, slots))| {
             let tx = tx_empty.clone();
-            thread::spawn(move || writer_thread(idx, rx, tx, slots))
+            thread::spawn(move || writer_thread(idx, rx, tx, n_writers, slots))
         })
         .collect();
 
@@ -113,6 +113,7 @@ fn writer_thread(
     idx: usize,
     rx_filled: Receiver<MemBuffer>,
     tx_empty: Sender<MemBuffer>,
+    n_writers: usize,
     mut slots: Vec<Slot>,
 ) -> Result<()> {
     let n_slots = slots.len();
@@ -121,7 +122,8 @@ fn writer_thread(
     while let Ok(mut record_buf) = rx_filled.recv() {
         let mut completed = 0usize;
         for record in record_buf.iter() {
-            let slot = &mut slots[(record.hash as usize) % n_slots];
+            let slot_idx = ((record.hash / n_writers as u64) % n_slots as u64) as usize;
+            let slot = &mut slots[slot_idx];
 
             let active = &mut slot.bufs[slot.active];
             active.push(record)?;
