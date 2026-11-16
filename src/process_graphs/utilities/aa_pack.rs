@@ -1,6 +1,3 @@
-use anyhow::{Result, bail};
-use std::borrow::Borrow;
-
 /// Code 0 is the filler. Residues use codes 1..=20.
 const FILLER: u8 = 0;
 const INVALID: u8 = u8::MAX;
@@ -19,23 +16,25 @@ const CODE: [u8; 256] = {
     table
 };
 
-pub fn pack_into<I, B>(buf: &mut Vec<u8>, seq: I) -> Result<()>
+/// Maps an ASCII residue to its 5-bit code, `None` for anything not in the alphabet.
+#[inline]
+pub fn encode_residue(c: u8) -> Option<u8> {
+    let code = CODE[c as usize];
+    (code != INVALID).then_some(code)
+}
+
+/// Packs 5-bit residue codes (as produced by [`encode_residue`]) into `buf`.
+/// `buf` is cleared first. The last byte is padded with filler bits.
+pub fn pack_codes_into<I>(buf: &mut Vec<u8>, codes: I)
 where
-    I: IntoIterator<Item = B>,
-    B: Borrow<u8>,
+    I: IntoIterator<Item = u8>,
 {
     buf.clear();
 
     let mut acc: u32 = 0;
     let mut bits: u32 = 0;
 
-    for c in seq {
-        let c = *c.borrow();
-        let code = CODE[c as usize];
-        if code == INVALID {
-            bail!("invalid amino acid code: {:?}", c as char);
-        }
-
+    for code in codes {
         acc = (acc << 5) | code as u32;
         bits += 5;
 
@@ -49,8 +48,6 @@ where
     if bits > 0 {
         buf.push((acc << (8 - bits)) as u8);
     }
-
-    Ok(())
 }
 
 /// Unpacks 5-bit codes from an iterator of packed bytes, pushing one-letter codes into `buf`.

@@ -55,17 +55,17 @@ fn traversal_thread(
 
     while let Ok(mut job) = rx.recv() {
         let graph = &job.graph;
-        job.graph.tree_data.traverse_depth_first(
+        graph.traverse_depth_first(
             &ctx,
             &mut job.path,
             &mut |path| {
-                graph.meta_data.build_sequence(path, &mut sequence_buffer)?;
+                graph.build_sequence(path, &mut sequence_buffer);
 
                 let h = xxh64(&sequence_buffer, SEED);
                 let idx = (h % n_writers as u64) as usize;
 
                 let record = Record {
-                    metas: graph.meta_data.build_metas(path)?,
+                    metas: graph.build_metas(path),
                     sequence: sequence_buffer.clone(),
                     hash: h,
                 };

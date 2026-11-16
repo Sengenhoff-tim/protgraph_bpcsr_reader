@@ -1,5 +1,6 @@
 use anyhow::Result;
 
+mod convert_graphs;
 mod deduplicate_output;
 mod parameters;
 mod process_graphs;
@@ -15,6 +16,7 @@ mod tests;
 static GLOBAL: MiMalloc = MiMalloc;
 
 use crate::{
+    convert_graphs::prepare_graphs,
     deduplicate_output::dedup_bin_files,
     parameters::Config,
     process_graphs::process_graphs,
@@ -36,10 +38,15 @@ fn main() -> Result<()> {
 
     let memory = config.cli.avail_memory;
 
+    info!("CONVERTING graphs");
+
+    // convert .bpcsr input once into arena layout (no-op if input already is converted)
+    let graph_path = prepare_graphs(&config.cli.graph_input_path, &outdir_path)?;
+
     info!("PROCESSING graphs");
 
     // read graphs and produce intermediate files
-    process_graphs(config)?;
+    process_graphs(config, &graph_path)?;
 
     info!("FINISHED processing graphs");
 

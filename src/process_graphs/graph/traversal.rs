@@ -1,42 +1,39 @@
 use anyhow::Result;
 
-use crate::process_graphs::utilities::{FtClvEdge, PathState, Pdbs, TraversalContext};
+use crate::process_graphs::utilities::{PathState, TraversalContext};
 
-/// relevant information for traversal
-pub struct TreeData {
-    pub nodes: Box<[u32]>,
-    pub mono_weight: Box<[i64]>,
-    pub ft_clv_edge: Box<[FtClvEdge]>,
-    pub pdbs: Pdbs,
-}
+use super::{Edge, ProteinGraph};
 
-impl TreeData {
+impl ProteinGraph {
+    /// Returns the state after stepping over `edge`, or `None` if the edge is pruned.
+    #[inline]
     pub fn process_edge(
         &self,
-        edge: FtClvEdge,
+        edge: Edge,
         ctx: &TraversalContext,
         current: &PathState,
-    ) -> Option<(u32, u16, u16, i64)> {
-        let cur_cleaves = current.cleaves + edge.cleaves;
-        if cur_cleaves > ctx.max_missed_cleavages {
+    ) -> Option<PathState> {
+        let cleaves = current.cleaves + edge.cleaves();
+        if cleaves > ctx.max_missed_cleavages {
             return None;
         }
 
-        let cur_var = current.var + edge.features;
-        if cur_var > ctx.max_variants {
+        let var = current.var + edge.features();
+        if var > ctx.max_variants {
             return None;
         }
 
-        let target = edge.edge;
-        let cur_tv = current.tv + self.mono_weight[target as usize];
+        let target = edge.target();
+        let node = self.node(target);
+        let tv = current.tv + node.mono_weight();
 
-        if self
-            .pdbs
-            .has_overlapping_interval(target as usize, &ctx.intervals, cur_tv)
-        {
-            return Some((target, cur_var, cur_cleaves, cur_tv));
-        }
-        None
+        node.has_overlapping_interval(&ctx.intervals, tv)
+            .then_some(PathState {
+                node: target,
+                var,
+                cleaves,
+                tv,
+            })
     }
 
     pub fn traverse_depth_first(
@@ -45,34 +42,17 @@ impl TreeData {
         traversal_state: &mut Vec<PathState>,
         on_complete: &mut impl FnMut(&[PathState]) -> Result<()>,
     ) -> Result<()> {
-        let current_state = *traversal_state
+        let current = *traversal_state
             .last()
             .expect("path must contain at least the root");
-        let node_idx = current_state.node as usize;
-        let last_idx = self.nodes.len() - 1;
 
-        if node_idx == last_idx {
-            on_complete(traversal_state)?;
-            return Ok(());
+        if current.node == self.terminal() {
+            return on_complete(traversal_state);
         }
 
-        let edge_begin = if node_idx == 0 {
-            0
-        } else {
-            self.nodes[node_idx - 1] as usize
-        };
-        let edge_end = self.nodes[node_idx] as usize;
-
-        for &edge in self.ft_clv_edge[edge_begin..edge_end].iter() {
-            if let Some((target, cur_var, cur_cleaves, cur_tv)) =
-                self.process_edge(edge, ctx, &current_state)
-            {
-                traversal_state.push(PathState {
-                    node: target,
-                    var: cur_var,
-                    cleaves: cur_cleaves,
-                    tv: cur_tv,
-                });
+        for edge in self.node(current.node).edges() {
+            if let Some(next) = self.process_edge(edge, ctx, &current) {
+                traversal_state.push(next);
                 self.traverse_depth_first(ctx, traversal_state, on_complete)?;
                 traversal_state.pop();
             }

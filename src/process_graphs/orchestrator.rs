@@ -1,6 +1,7 @@
 use std::{
     fs::{File, create_dir_all},
     io::BufReader,
+    path::Path,
     sync::Arc,
 };
 
@@ -23,8 +24,8 @@ use crate::{
 const GIB: u64 = 1024 * 1024 * 1024;
 const MIN_BATCH_BYTES: usize = 64 * 1024;
 
-/// main graph processing workflow
-pub fn process_graphs(config: Config) -> Result<()> {
+/// main graph processing workflow, reads converted graphs from `graph_path`
+pub fn process_graphs(config: Config, graph_path: &Path) -> Result<()> {
     // config
     let cli = &config.cli;
 
@@ -96,7 +97,8 @@ pub fn process_graphs(config: Config) -> Result<()> {
         ctx,
     )?;
 
-    let graph = File::open(&cli.graph_input_path)?;
+    let graph = File::open(graph_path)
+        .with_context(|| format!("opening {}", graph_path.display()))?;
     let reader_for_graph = BufReader::new(graph);
     let reader_handle = spawn_protein_graph_reader(reader_for_graph, tx_graphs);
 

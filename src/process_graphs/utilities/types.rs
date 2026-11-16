@@ -11,6 +11,7 @@ pub struct TraversalContext {
 
 #[derive(Debug, Clone, Copy)]
 pub struct PathState {
+    /// word offset of the node block in the graph arena
     pub node: u32,
     pub var: u16,
     pub cleaves: u16,
@@ -20,12 +21,4 @@ pub struct PathState {
 pub struct TraversalJob {
     pub graph: Arc<ProteinGraph>,
     pub path: Vec<PathState>,
-}
-
-#[derive(Debug, Clone, Copy)]
-#[repr(C)]
-pub struct FtClvEdge {
-    pub features: u16,
-    pub cleaves: u16,
-    pub edge: u32,
 }

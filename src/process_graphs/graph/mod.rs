@@ -1,8 +1,5 @@
-mod metadata;
-/// struct for protein graph as read from .bpcsr
+/// protein graph stored as a node block arena
 mod protein_graph;
 mod traversal;
 
-pub use metadata::MetaData;
-pub use protein_graph::ProteinGraph;
-pub use traversal::TreeData;
+pub use protein_graph::{Edge, ProteinGraph, RawEdge, RawNode};

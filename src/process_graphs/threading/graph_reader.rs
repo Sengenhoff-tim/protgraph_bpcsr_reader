@@ -1,15 +1,18 @@
 use std::{
-    io::{BufRead, ErrorKind},
+    io::BufRead,
     thread::{self, JoinHandle},
 };
 
-use anyhow::{Context, Result, anyhow};
-use byteorder::{BigEndian, ReadBytesExt};
+use anyhow::{Context, Result};
 use crossbeam_channel::Sender;
 use tracing::info;
 
-use crate::process_graphs::{graph::ProteinGraph, io::bpcsr_reader::read_single_graph};
+use crate::process_graphs::{
+    graph::ProteinGraph,
+    io::arena_io::{read_graph, read_header},
+};
 
+/// Reads converted graphs (see `arena_io`) and sends them downstream.
 pub fn spawn_protein_graph_reader<R: BufRead + Send + 'static>(
     rdr: R,
     tx_protgraph: Sender<ProteinGraph>,
@@ -18,24 +21,16 @@ pub fn spawn_protein_graph_reader<R: BufRead + Send + 'static>(
         let mut rdr = rdr;
         let mut total_graphs = 0usize;
 
-        loop {
-            let num_acc = match rdr.read_u32::<BigEndian>() {
-                Ok(n) => n,
-                Err(e) => {
-                    if e.kind() != ErrorKind::UnexpectedEof {
-                        return Err(anyhow!("Failed to read graph count: {}", e));
-                    }
-                    info!("INPUT read complete: {} graphs", total_graphs);
-                    break;
-                }
-            };
+        read_header(&mut rdr)?;
 
+        while let Some(pg) =
+            read_graph(&mut rdr).with_context(|| format!("reading graph {total_graphs}"))?
+        {
             total_graphs += 1;
-
-            let pg = read_single_graph(num_acc, &mut rdr)?;
             tx_protgraph.send(pg).context("Channel receiver dropped")?;
         }
 
+        info!("INPUT read complete: {} graphs", total_graphs);
         Ok(())
     })
 }

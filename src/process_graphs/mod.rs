@@ -1,5 +1,5 @@
-mod graph;
-mod io;
+pub(crate) mod graph;
+pub(crate) mod io;
 mod orchestrator;
 mod threading;
 pub mod utilities;

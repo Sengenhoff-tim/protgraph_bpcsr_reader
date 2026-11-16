@@ -45,13 +45,13 @@ pub fn spawn_graph_dispatcher(
     for graph in rx_graphs {
         let graph = Arc::new(graph);
 
-        info!("TRAVERSAL start for {}", graph.meta_data.accessions[0]);
+        info!("TRAVERSAL start for {}", graph.accession());
 
         let frontier = graph.build_frontier(&ctx, jobs_per_graph);
 
         info!(
             "FRONTIER for {}: {} jobs",
-            graph.meta_data.accessions[0],
+            graph.accession(),
             frontier.len()
         );
 
