@@ -12,8 +12,8 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use crate::process_graphs::graph::ProteinGraph;
 
 const MAGIC_PREFIX: &[u8; 7] = b"PGARENA";
-pub(super) const VERSION: u8 = 2;
-pub const MAGIC: [u8; 8] = *b"PGARENA\x02";
+pub(super) const VERSION: u8 = 3;
+pub const MAGIC: [u8; 8] = *b"PGARENA\x03";
 pub(super) const HEADER_LEN: u64 = MAGIC.len() as u64 + 8;
 pub const EXTENSION: &str = "pgarena";
 

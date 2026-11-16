@@ -7,7 +7,9 @@ use crate::process_graphs::utilities::Interval;
 use super::{
     ProteinGraph, RawEdge,
     edge::MAX_OFFSET,
-    node::{block_words, encode_counts},
+    node::{
+        MAX_NODE_EDGES, MAX_NODE_PDBS, MAX_NODE_RESIDUES, block_words, encode_counts, encode_seq,
+    },
 };
 
 /// Node as handed to [`ProteinGraph::build`]. Edge targets are node indices.
@@ -29,10 +31,19 @@ impl ProteinGraph {
         let mut total = 0usize;
         for (i, node) in nodes.iter().enumerate() {
             ensure!(
-                node.edges.len() <= u16::MAX as usize
-                    && node.pdbs.len() <= u16::MAX as usize
-                    && node.seq.len() <= u16::MAX as usize,
-                "node {i} exceeds 65535 edges, pdbs or residues"
+                node.edges.len() <= MAX_NODE_EDGES,
+                "node {i} has {} edges, at most {MAX_NODE_EDGES} supported",
+                node.edges.len()
+            );
+            ensure!(
+                node.pdbs.len() <= MAX_NODE_PDBS,
+                "node {i} has {} pdb intervals, at most {MAX_NODE_PDBS} supported",
+                node.pdbs.len()
+            );
+            ensure!(
+                node.seq.len() <= MAX_NODE_RESIDUES,
+                "node {i} has {} residues, at most {MAX_NODE_RESIDUES} supported",
+                node.seq.len()
             );
             ensure!(
                 total <= MAX_OFFSET,
@@ -46,11 +57,7 @@ impl ProteinGraph {
         let mut arena = Vec::with_capacity(total);
         for node in nodes {
             arena.push(node.mono_weight as u64);
-            arena.push(encode_counts(
-                node.edges.len(),
-                node.pdbs.len(),
-                node.seq.len(),
-            ));
+            arena.push(encode_counts(node.edges.len(), node.pdbs.len()));
             for iv in node.pdbs {
                 arena.push(iv.lower as u64);
                 arena.push(iv.upper as u64);
@@ -62,13 +69,7 @@ impl ProteinGraph {
                 }
                 arena.push(word);
             }
-            for chunk in node.seq.chunks(8) {
-                let mut word = 0u64;
-                for (j, &code) in chunk.iter().enumerate() {
-                    word |= (code as u64) << (8 * j);
-                }
-                arena.push(word);
-            }
+            arena.extend(encode_seq(node.seq));
         }
         debug_assert_eq!(arena.len(), total);
 
