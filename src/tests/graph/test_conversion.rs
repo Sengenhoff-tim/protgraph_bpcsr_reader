@@ -92,9 +92,6 @@ fn reader_rejects_bad_input() {
     let mut bad_residue = base.clone();
     bad_residue.seqs[2] = "AC#D".into();
 
-    let mut too_many_features = base.clone();
-    too_many_features.vc[0] = 8;
-
     let mut bad_target = base.clone();
     bad_target.targets[0] = 99;
 
@@ -104,15 +101,14 @@ fn reader_rejects_bad_input() {
     let mut bad_pdb = base.clone();
     bad_pdb.pdbs[1][0] = (10, 5);
 
-    for g in [
-        bad_residue,
-        too_many_features,
-        bad_target,
-        bad_offsets,
-        bad_pdb,
-    ] {
+    for g in [bad_residue, bad_target, bad_offsets, bad_pdb] {
         assert!(read_all(&write_bpcsr(&[g])).is_err());
     }
+
+    // large variant counts are capped, not rejected
+    let mut many_features = base.clone();
+    many_features.vc[0] = 200;
+    assert!(read_all(&write_bpcsr(&[many_features])).is_ok());
 
     // truncated file
     let bytes = write_bpcsr(&[base]);

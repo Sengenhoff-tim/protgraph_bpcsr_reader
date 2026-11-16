@@ -8,6 +8,8 @@ mod protein_graph;
 mod traversal;
 
 pub use builder::RawNode;
-pub use edge::{Edge, RawEdge};
+#[cfg(test)]
+pub use edge::FEATURE_CAP;
+pub use edge::{Edge, MAX_VARIANTS, RawEdge};
 pub use node::Node;
 pub use protein_graph::ProteinGraph;

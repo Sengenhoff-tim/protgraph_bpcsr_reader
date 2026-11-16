@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
+use crate::process_graphs::graph::MAX_VARIANTS;
+
 #[derive(Parser, Debug)]
 pub struct Cli {
     // i/o args
@@ -38,7 +40,8 @@ pub struct Cli {
         long = "max_vars",
         value_name = "U16",
         default_value_t = 3,
-        help = "Maximum variants per peptide. Defaults to 3."
+        value_parser = clap::value_parser!(u16).range(0..=MAX_VARIANTS as i64),
+        help = "Maximum variants per peptide, at most 6. Defaults to 3."
     )]
     pub max_vars: u16,
 

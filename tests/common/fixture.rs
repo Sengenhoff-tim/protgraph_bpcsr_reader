@@ -168,10 +168,10 @@ pub fn random_graph(rng: &mut StdRng, n_nodes: usize, n_pdbs: usize) -> TestGrap
             for t in targets {
                 g.targets.push(t);
                 g.cleaved.push(rng.random_bool(0.3) as u8);
-                g.vc.push(if rng.random_bool(0.2) {
-                    rng.random_range(1..=3)
-                } else {
-                    0
+                g.vc.push(match rng.random_range(0..40) {
+                    0..=7 => rng.random_range(1..=3),
+                    8 => rng.random_range(4..=40), // up to beyond the stored cap
+                    _ => 0,
                 });
                 g.qualifiers.push("q".into());
             }

@@ -1,7 +1,7 @@
 //! Layout of the node block arena: accessors, word boundaries and limits.
 
 use crate::process_graphs::{
-    graph::{ProteinGraph, RawEdge, RawNode},
+    graph::{FEATURE_CAP, MAX_VARIANTS, ProteinGraph, RawEdge, RawNode},
     utilities::{Interval, encode_residue, pack_codes_into, unpack_into},
 };
 
@@ -97,25 +97,53 @@ fn rejects_invalid_graphs() {
     let empty: [RawNode; 0] = [];
     assert!(ProteinGraph::build(0, &empty).is_err());
 
-    let too_many_features = [edge(1, 8, false)];
     let out_of_range = [edge(5, 0, false)];
-    for edges in [&too_many_features[..], &out_of_range[..]] {
-        let nodes = [
-            RawNode {
-                mono_weight: 0,
-                pdbs: &[],
-                edges,
-                seq: &[],
-            },
-            RawNode {
-                mono_weight: 0,
-                pdbs: &[],
-                edges: &[],
-                seq: &[],
-            },
-        ];
-        assert!(ProteinGraph::build(0, &nodes).is_err());
-    }
+    let nodes = [
+        RawNode {
+            mono_weight: 0,
+            pdbs: &[],
+            edges: &out_of_range,
+            seq: &[],
+        },
+        RawNode {
+            mono_weight: 0,
+            pdbs: &[],
+            edges: &[],
+            seq: &[],
+        },
+    ];
+    assert!(ProteinGraph::build(0, &nodes).is_err());
+}
+
+#[test]
+fn feature_counts_are_capped() {
+    let edges = [6, 7, 8, 200].map(|f| edge(1, f, true));
+    let nodes = [
+        RawNode {
+            mono_weight: 0,
+            pdbs: &[],
+            edges: &edges,
+            seq: &[],
+        },
+        RawNode {
+            mono_weight: 0,
+            pdbs: &[],
+            edges: &[],
+            seq: &[],
+        },
+    ];
+    let g = ProteinGraph::build(0, &nodes).unwrap();
+    let stored: Vec<_> = g
+        .node(0)
+        .edges()
+        .map(|e| (e.features(), e.cleaves()))
+        .collect();
+    let cap = FEATURE_CAP as u16;
+    assert_eq!(stored, [(6, 1), (cap, 1), (cap, 1), (cap, 1)]);
+    assert!(
+        MAX_VARIANTS < cap,
+        "a capped edge must exceed every allowed max_vars"
+    );
 }
 
 #[test]

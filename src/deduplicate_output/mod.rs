@@ -8,8 +8,7 @@ mod shard_dedup;
 mod threading;
 
 pub use output_files::{
-    ACCESSIONS_FILE, METADATA_FILE, OUTPUT_GZIP_LEVEL, PEPTIDES_FILE, output_path,
-    write_accessions,
+    ACCESSIONS_FILE, METADATA_FILE, OUTPUT_GZIP_LEVEL, PEPTIDES_FILE, output_path, write_accessions,
 };
 pub use output_sink::{OutputSink, OutputStats};
 pub use shard_dedup::dedup_spilled;

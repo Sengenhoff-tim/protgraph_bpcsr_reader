@@ -8,7 +8,7 @@ use super::fixture::{TestGraph, parse_bpcsr, random_graph, reference_peptides, w
 use crate::{
     convert_graphs::{AccessionTable, bpcsr_reader::read_single_graph},
     process_graphs::{
-        graph::ProteinGraph,
+        graph::{MAX_VARIANTS, ProteinGraph},
         utilities::{
             Interval, IntervalVecExt, PathState, TraversalContext, WEIGHT_FACTOR, unpack_into,
         },
@@ -96,7 +96,8 @@ fn traversal_matches_reference_on_random_graphs() {
                 }
             })
             .collect();
-        let (max_vars, max_cleavages) = (rng.random_range(0..4), rng.random_range(0..4));
+        let max_vars = rng.random_range(0..=MAX_VARIANTS);
+        let max_cleavages = rng.random_range(0..4);
         let ctx = ctx(queries, max_vars, max_cleavages);
 
         let expected = reference_peptides(&tg, &ctx.intervals, max_vars, max_cleavages);

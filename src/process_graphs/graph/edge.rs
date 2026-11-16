@@ -1,12 +1,19 @@
 //! Packed edge: `target offset (28 bit) | features (3 bit) | cleave (1 bit)`.
+//!
+//! Feature counts are capped at [`FEATURE_CAP`]: a stored cap means "more than any allowed
+//! `max_vars`", so such edges are always pruned, exactly like with their real count.
 
-use anyhow::{Result, bail, ensure};
+use anyhow::{Result, bail};
 
-const TARGET_SHIFT: u32 = 4;
-/// Edge targets are stored with 28 bits.
+const FEATURE_BITS: u32 = 3;
+const FEATURE_MASK: u32 = (1 << FEATURE_BITS) - 1;
+const TARGET_SHIFT: u32 = 1 + FEATURE_BITS;
+/// Edge targets are stored with 28 bits (2 GiB of arena per graph).
 pub const MAX_OFFSET: usize = (1 << (32 - TARGET_SHIFT)) - 1;
-/// Feature counts are stored with 3 bits.
-pub const MAX_FEATURES: u8 = 0b111;
+/// Feature counts of this value or more are stored as this value.
+pub const FEATURE_CAP: u8 = FEATURE_MASK as u8;
+/// Largest `max_vars` the edge format supports exactly: one below the cap.
+pub const MAX_VARIANTS: u16 = FEATURE_CAP as u16 - 1;
 
 /// Edge as stored in a node block. The target is the word offset of the target block.
 #[derive(Clone, Copy, Debug)]
@@ -18,9 +25,10 @@ impl Edge {
         self.0 >> TARGET_SHIFT
     }
 
+    /// Feature count, capped at [`FEATURE_CAP`].
     #[inline]
     pub fn features(self) -> u16 {
-        ((self.0 >> 1) & MAX_FEATURES as u32) as u16
+        ((self.0 >> 1) & FEATURE_MASK) as u16
     }
 
     #[inline]
@@ -43,13 +51,9 @@ impl RawEdge {
         let Some(&target) = offsets.get(self.target as usize) else {
             bail!("edge target {} out of range", self.target);
         };
-        ensure!(
-            self.features <= MAX_FEATURES,
-            "edge feature count {} exceeds {MAX_FEATURES}",
-            self.features
-        );
+        let features = self.features.min(FEATURE_CAP) as u32;
         Ok(Edge(
-            target << TARGET_SHIFT | (self.features as u32) << 1 | self.cleave as u32,
+            target << TARGET_SHIFT | features << 1 | self.cleave as u32,
         ))
     }
 }

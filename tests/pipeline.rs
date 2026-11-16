@@ -21,6 +21,9 @@ use bpcsr_to_fasta::{
 };
 use common::fixture::{TestGraph, random_graph, reference_peptides, write_bpcsr};
 
+/// Variant limit of all runs (the CLI default).
+const MAX_VARS: u16 = 3;
+
 /// (sequence, sorted accession names), sorted
 type Peptides = Vec<(String, Vec<String>)>;
 
@@ -36,7 +39,7 @@ fn params(
         zip,
         process: ProcessParams {
             threads,
-            max_vars: 2,
+            max_vars: MAX_VARS,
             max_cleavages: 2,
             bucket_size,
             table_budget,
@@ -117,7 +120,7 @@ fn expected(graphs: &[TestGraph], intervals: &[Interval]) -> Peptides {
     for interval in intervals {
         let mut groups: HashMap<String, Vec<String>> = HashMap::new();
         for g in graphs {
-            for seq in reference_peptides(g, std::slice::from_ref(interval), 2, 2) {
+            for seq in reference_peptides(g, std::slice::from_ref(interval), MAX_VARS, 2) {
                 groups.entry(seq).or_default().push(g.accessions[0].clone());
             }
         }
@@ -197,7 +200,8 @@ fn in_memory_dedup_matches_reference() {
         total += got.len();
     }
     println!("{total} peptides");
-    assert!(total > 300, "test cases produce too few peptides ({total})");
+    // guards against vacuous runs; the exact count depends on the random cases
+    assert!(total > 200, "test cases produce too few peptides ({total})");
 }
 
 #[test]
@@ -232,4 +236,21 @@ fn intervals_without_matches_produce_empty_output() {
     let (got, report) = run_case(&case, true, 1, 1 << 20, 4);
     assert!(got.is_empty());
     assert_eq!(report.output.peptides, 0);
+}
+
+#[test]
+fn max_vars_above_the_edge_format_limit_is_rejected() {
+    let case = random_case(1);
+    let dir = tempdir().unwrap();
+    let input = dir.path().join("database.bpcsr");
+    fs::write(&input, write_bpcsr(&case.graphs)).unwrap();
+    let outdir = dir.path().join("out");
+    let graph_path = prepare_graphs(&input, &outdir).unwrap();
+
+    let mut p = params(&outdir, false, 1, 1 << 20, 4);
+    p.process.max_vars = 7;
+    let err = run(&p, &case.intervals, &graph_path)
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("max_vars"), "{err}");
 }

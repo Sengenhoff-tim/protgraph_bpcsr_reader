@@ -16,7 +16,7 @@ This tool processes protein graphs against mass range queries to identify matchi
 
 | Argument | Short | Long | Default | Description |
 |----------|-------|------|---------|-------------|
-| Max variants | `-v` | `--max_vars` | 3 | Maximum sequence variants per peptide |
+| Max variants | `-v` | `--max_vars` | 3 | Maximum sequence variants per peptide, at most 6 |
 | Max missed cleavages | `-c` | `--max_missed_cleavages` | 3 | Maximum cleavage misses. For full digestion, this describes maximum peptide length |
 | Global lower bound | `-l` | `--lower_bound` | 100 | Minimum peptide mass (Da), clamps as sanity check |
 | Global upper bound | `-u` | `--upper_bound` | 10000 | Maximum peptide mass (Da), clamps as sanity check |

@@ -9,6 +9,7 @@ use crossbeam_channel::{Receiver, Sender, bounded, unbounded};
 use super::{IntervalReport, ProcessParams, sizing::Sizing, stages};
 use crate::{
     process_graphs::{
+        graph::MAX_VARIANTS,
         io::arena_io::ArenaFile,
         threading::{FlushRequest, Spiller, Supervisor, WriterMsg, WriterReport},
         utilities::{Interval, Pass, TraversalContext},
@@ -38,6 +39,11 @@ impl ProcessPipeline {
         tx_out: Sender<OutputBatch>,
         acc_width: usize,
     ) -> Result<Self> {
+        ensure!(
+            params.max_vars <= MAX_VARIANTS,
+            "max_vars {} exceeds the supported maximum of {MAX_VARIANTS}",
+            params.max_vars
+        );
         let sizing = Sizing::new(params, acc_width);
         sizing.log();
 
