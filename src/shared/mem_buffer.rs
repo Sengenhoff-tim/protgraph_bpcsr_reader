@@ -1,61 +1,69 @@
-/// A metadata entry attached to a record.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Meta {
-    pub id: String,
-    pub pos: u16,
+//! Batches of traversal results sent from workers to writers.
+
+#[derive(Debug, Clone, Copy)]
+struct RecRef {
+    hash: u64,
+    start: usize,
+    len: u32,
+    acc: u32,
 }
 
-/// A worker output record. Holds structured values only, no byte layout.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Record {
-    pub metas: Vec<Meta>,
-    pub sequence: Vec<u8>,
+/// One traversal result: packed sequence, its hash and the accession id it came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MemRecord<'a> {
     pub hash: u64,
+    pub acc: u32,
+    pub seq: &'a [u8],
 }
 
-/// In-memory collection of records used for worker output and routing.
+/// Flat batch of records: all sequences in one byte vector, no allocation per record.
 #[derive(Debug, Default)]
 pub struct MemBuffer {
-    records: Vec<Record>,
-    bytes: usize,
+    seqs: Vec<u8>,
+    recs: Vec<RecRef>,
 }
 
 impl MemBuffer {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn with_capacity(cap: usize) -> Self {
+    pub fn with_capacity(bytes: usize) -> Self {
         Self {
-            records: Vec::with_capacity(cap),
-            bytes: 0,
+            seqs: Vec::with_capacity(bytes / 2),
+            recs: Vec::with_capacity(bytes / 2 / size_of::<RecRef>()),
         }
     }
 
-    pub fn push(&mut self, record: Record) {
-        self.bytes += record.sequence.len();
-        self.records.push(record);
+    pub fn push(&mut self, hash: u64, acc: u32, seq: &[u8]) {
+        self.recs.push(RecRef {
+            hash,
+            start: self.seqs.len(),
+            len: seq.len() as u32,
+            acc,
+        });
+        self.seqs.extend_from_slice(seq);
     }
 
     pub fn clear(&mut self) {
-        self.records.clear();
-        self.bytes = 0;
+        self.seqs.clear();
+        self.recs.clear();
     }
 
-    /// Approximate size: sum of sequence lengths held.
+    /// Approximate memory held by the records.
     pub fn byte_len(&self) -> usize {
-        self.bytes
+        self.seqs.len() + self.recs.len() * size_of::<RecRef>()
     }
 
     pub fn len(&self) -> usize {
-        self.records.len()
+        self.recs.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.records.is_empty()
+        self.recs.is_empty()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &Record> {
-        self.records.iter()
+    pub fn iter(&self) -> impl Iterator<Item = MemRecord<'_>> {
+        self.recs.iter().map(|r| MemRecord {
+            hash: r.hash,
+            acc: r.acc,
+            seq: &self.seqs[r.start..r.start + r.len as usize],
+        })
     }
 }

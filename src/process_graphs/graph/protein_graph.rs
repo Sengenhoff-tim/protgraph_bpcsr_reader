@@ -11,28 +11,29 @@ use super::Node;
 pub const ROOT: u32 = 0;
 
 pub struct ProteinGraph {
-    pub(super) accession: String,
+    /// id in the global accession table
+    pub(super) acc_id: u32,
     pub(super) arena: Box<[u64]>,
     pub(super) terminal: u32,
 }
 
 impl ProteinGraph {
     /// Reassembles a graph from its serialized parts.
-    pub fn from_parts(accession: String, arena: Box<[u64]>, terminal: u32) -> Result<Self> {
+    pub fn from_parts(acc_id: u32, arena: Box<[u64]>, terminal: u32) -> Result<Self> {
         ensure!(
             (terminal as usize) < arena.len(),
             "terminal offset {terminal} outside arena of {} words",
             arena.len()
         );
         Ok(Self {
-            accession,
+            acc_id,
             arena,
             terminal,
         })
     }
 
-    pub fn accession(&self) -> &str {
-        &self.accession
+    pub fn acc_id(&self) -> u32 {
+        self.acc_id
     }
 
     pub fn arena(&self) -> &[u64] {

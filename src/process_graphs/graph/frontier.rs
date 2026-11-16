@@ -1,19 +1,15 @@
 //! Splitting a graph into independent traversal jobs.
 
-use std::{collections::VecDeque, sync::Arc};
+use std::collections::VecDeque;
 
-use crate::process_graphs::utilities::{PathState, TraversalContext, TraversalJob};
+use crate::process_graphs::utilities::{PathState, TraversalContext};
 
 use super::{ProteinGraph, protein_graph::ROOT};
 
 impl ProteinGraph {
-    /// Expands paths breadth first from the root until at least `target` jobs exist
-    /// (or the graph is exhausted). Each job continues depth first from its path.
-    pub fn build_frontier(
-        self: &Arc<Self>,
-        ctx: &TraversalContext,
-        target: usize,
-    ) -> Vec<TraversalJob> {
+    /// Expands paths breadth first from the root until at least `target` paths exist
+    /// (or the graph is exhausted). Each path is continued depth first by a worker.
+    pub fn build_frontier(&self, ctx: &TraversalContext, target: usize) -> Vec<Vec<PathState>> {
         let mut open: VecDeque<Vec<PathState>> = VecDeque::new();
         let mut done: Vec<Vec<PathState>> = Vec::new();
 
@@ -46,12 +42,6 @@ impl ProteinGraph {
             }
         }
 
-        open.into_iter()
-            .chain(done)
-            .map(|path| TraversalJob {
-                graph: Arc::clone(self),
-                path,
-            })
-            .collect()
+        open.into_iter().chain(done).collect()
     }
 }

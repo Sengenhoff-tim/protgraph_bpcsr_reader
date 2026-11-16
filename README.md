@@ -27,31 +27,44 @@ This tool processes protein graphs against mass range queries to identify matchi
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `--avail_processors` | 1 | CPU cores for parallel processing |
-| `--avail_memory` | Required | Available RAM in GB; jobs split if exceeded |
-| `--interval_bin_length` | 100.0 | Mass range bin size (Da); smaller = less memory, more overhead |
-| `--job_splits` | 16 | Sub-jobs per split when memory limit hit |
-| `--split_depth` | 3 | Max recursive splits (exponential); failed jobs → `logs.csv` |
+| `--avail_memory` | Required | Available RAM in GB; 60% is used for the in-memory dedup tables |
+| `--bucket_size` | 8 | Entries per bucket of the in-memory dedup tables |
+| `--max_file_handles` | 80% of RLIMIT_NOFILE, clamped 64–8192 (Windows: 2048) | Spill files open at once during traversal, over all writers |
 
-### Channel Sizes (tune for memory constraints)
+Queue depths and buffer sizes are derived from `--avail_processors` and `--avail_memory`.
 
-- `--ch_proc_in_size`: Graphs buffered during processing (default: 2)
-- `--ch_proc_query_size`: Query jobs buffered (default: `avail_processors * 2`)
-- `--ch_proc_out_size`: Processing batches (default: `avail_processors * 2`)
-- `--ch_dedup_in_size`: Binary files buffered during dedup (default: 2)
-- `--ch_dedup_out_size`: Dedup batches (default: `avail_processors * 2`)
+### How it works
 
-### Intermediate File Handling
+1. **Conversion**: the `.bpcsr` input is converted once into `<outdir>/graphs.pgarena`
+   (one memory block per graph node, global accession table). Passing a `.pgarena` file as
+   `-g` skips this step.
+2. **Per query interval**: all graphs are traversed against the interval. Results are
+   deduplicated in memory by sequence; when memory runs out, entries are spilled to
+   `<outdir>/tmp`. Complete results are written to the output right away.
+3. **Spilled intervals** are deduplicated from their files at the end and appended.
 
-- `--hash_bits`: Intermediate file bin count as `2^N`; auto-tuned if omitted
-- `--max_file_handles`: Max open files (Unix: RLIMIT_NOFILE, clamped 64–8192; Windows: 2048)
+`<outdir>/tmp` is cleared at the start of a run and removed at the end.
+
+Query intervals are merged, so they never overlap; a peptide's mass follows from its
+sequence, so a peptide never occurs in two intervals.
+
+### Output
+
+| File | Content |
+|------|---------|
+| `peptides.fasta` | `>pg|{start}:{count - 1}` and the sequence, 60 residues per line |
+| `metadata.bin` | first byte: id width `w` (1–4); then the accession ids of all peptides in fasta order, `w` bytes little endian each. Peptide ids `start .. start + count` belong to the header |
+| `accessions.csv` | `id,accession` |
+
+With `-z`, all three are gzip compressed. Each accession is listed at most once per peptide.
 
 ### Minimal Example
 ```
-bpcsr_to_fasta \\
-  -g proteins.bpcsr \\
-  -q ranges.csv \\
-  -o results/ \\
-  --avail\_memory 8
+bpcsr_to_fasta \
+  -g proteins.bpcsr \
+  -q ranges.csv \
+  -o results/ \
+  --avail_memory 8
 ```
 
 ### Input File Format For Ranges File (ranges.csv)
@@ -64,7 +77,7 @@ lower,upper
 
 ### Full Example
 
-Processes with 5 variants per peptide, 2 missed cleavages, mass range clamped to 500–5000 Da, parallelized across 16 CPUs with 32 GB RAM, finer binning (50 Da), and higher buffering for throughput.
+Processes with 5 variants per peptide, 2 missed cleavages, mass range clamped to 500–5000 Da, parallelized across 16 CPUs with 32 GB RAM and larger dedup buckets, compressed output. A second run on the same graphs can pass `./output/graphs.pgarena` as `-g` to skip the conversion.
 
 ```
 bpcsr_to_fasta \
@@ -78,9 +91,5 @@ bpcsr_to_fasta \
   -u 5000 \
   --avail_processors 16 \
   --avail_memory 32 \
-  --interval_bin_length 50.0 \
-  --job_splits 32 \
-  --split_depth 4 \
-  --ch_proc_in_size 4 \
-  --ch_proc_query_size 32
+  --bucket_size 16
 ```

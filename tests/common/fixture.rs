@@ -1,10 +1,14 @@
 //! Test fixtures independent of the production code: a plain in-memory model of a
 //! .bpcsr graph, a writer and parser for the file format, a random graph generator and
 //! a naive reference traversal.
+//!
+//! Shared by the unit tests (included via `#[path]` from `src/tests/graph/mod.rs`) and the
+//! integration tests; the including module provides `Interval`.
+#![allow(dead_code)]
 
 use rand::{prelude::*, rngs::StdRng};
 
-use crate::process_graphs::utilities::Interval;
+use super::Interval;
 
 pub const PDB_SENTINEL: (i64, i64) = (i64::MAX, i64::MAX);
 
@@ -32,7 +36,11 @@ impl TestGraph {
     }
 
     pub fn edges_of(&self, node: usize) -> std::ops::Range<usize> {
-        let start = if node == 0 { 0 } else { self.edge_ends[node - 1] as usize };
+        let start = if node == 0 {
+            0
+        } else {
+            self.edge_ends[node - 1] as usize
+        };
         start..self.edge_ends[node] as usize
     }
 }
@@ -160,7 +168,11 @@ pub fn random_graph(rng: &mut StdRng, n_nodes: usize, n_pdbs: usize) -> TestGrap
             for t in targets {
                 g.targets.push(t);
                 g.cleaved.push(rng.random_bool(0.3) as u8);
-                g.vc.push(if rng.random_bool(0.2) { rng.random_range(1..=3) } else { 0 });
+                g.vc.push(if rng.random_bool(0.2) {
+                    rng.random_range(1..=3)
+                } else {
+                    0
+                });
                 g.qualifiers.push("q".into());
             }
         }
@@ -213,7 +225,12 @@ pub fn reference_peptides(
         out: &mut Vec<String>,
     ) {
         if node == g.n_nodes() - 1 {
-            out.push(path[1..path.len() - 1].iter().map(|&n| g.seqs[n].as_str()).collect());
+            out.push(
+                path[1..path.len() - 1]
+                    .iter()
+                    .map(|&n| g.seqs[n].as_str())
+                    .collect(),
+            );
             return;
         }
         for e in g.edges_of(node) {
@@ -231,7 +248,17 @@ pub fn reference_peptides(
     }
 
     let mut out = Vec::new();
-    dfs(g, queries, (max_vars, max_cleavages), 0, 0, 0, 0, &mut vec![0], &mut out);
+    dfs(
+        g,
+        queries,
+        (max_vars, max_cleavages),
+        0,
+        0,
+        0,
+        0,
+        &mut vec![0],
+        &mut out,
+    );
     out.sort();
     out
 }

@@ -21,7 +21,7 @@ pub struct RawNode<'a> {
 
 impl ProteinGraph {
     /// Lays out the nodes into the arena. Node 0 is the root, the last node the terminal.
-    pub fn build(accession: String, nodes: &[RawNode]) -> Result<Self> {
+    pub fn build(acc_id: u32, nodes: &[RawNode]) -> Result<Self> {
         ensure!(!nodes.is_empty(), "graph has no nodes");
 
         // pass 1: block offsets
@@ -46,7 +46,11 @@ impl ProteinGraph {
         let mut arena = Vec::with_capacity(total);
         for node in nodes {
             arena.push(node.mono_weight as u64);
-            arena.push(encode_counts(node.edges.len(), node.pdbs.len(), node.seq.len()));
+            arena.push(encode_counts(
+                node.edges.len(),
+                node.pdbs.len(),
+                node.seq.len(),
+            ));
             for iv in node.pdbs {
                 arena.push(iv.lower as u64);
                 arena.push(iv.upper as u64);
@@ -69,7 +73,7 @@ impl ProteinGraph {
         debug_assert_eq!(arena.len(), total);
 
         Ok(Self {
-            accession,
+            acc_id,
             arena: arena.into_boxed_slice(),
             terminal: *offsets.last().expect("non-empty"),
         })

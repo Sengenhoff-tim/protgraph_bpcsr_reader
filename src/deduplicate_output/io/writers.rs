@@ -22,12 +22,3 @@ pub fn write_sequences<W: Write>(
 
     Ok(())
 }
-
-/// Writes one meta as its raw id (trailing zero padding removed) followed by
-/// its position as a little-endian u16.
-pub fn write_meta<W: Write>(writer: &mut W, id: &[u8], pos: u16) -> Result<()> {
-    let end = id.iter().rposition(|&b| b != 0).map_or(0, |i| i + 1);
-    writer.write_all(&id[..end])?;
-    writer.write_all(&pos.to_le_bytes())?;
-    Ok(())
-}

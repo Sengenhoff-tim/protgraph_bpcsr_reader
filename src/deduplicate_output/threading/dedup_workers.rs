@@ -1,65 +1,51 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, fs, mem, path::PathBuf};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use crossbeam_channel::{Receiver, Sender};
 
-use crate::shared::DiskBuffer;
+use crate::shared::{DiskBuffer, OutputBatch, dedup_accs};
 
-pub struct WorkerResult {
-    pub buffer: DiskBuffer,
-    pub groups: Vec<Group>,
-}
+const OUTPUT_BATCH_BYTES: usize = 1 << 20;
 
-pub struct Group {
-    pub seq_start: usize,
-    pub seq_len: usize,
-    pub metas: Vec<(Vec<u8>, u16)>,
-}
-
-pub fn spawn_worker(
+/// Deduplicates whole shard files: every copy of a sequence of an interval is in the
+/// same shard, so merging the accession lists per sequence (without repeats) gives the
+/// final result.
+/// Processed shard files are deleted.
+pub fn shard_worker(
     rx_paths: Receiver<PathBuf>,
-    tx_entry: Sender<WorkerResult>,
-    rx_buffer_empty: Receiver<DiskBuffer>,
-) -> std::thread::JoinHandle<Result<()>> {
-    std::thread::spawn(move || -> Result<()> {
-        for path in rx_paths {
-            let mut buffer = rx_buffer_empty.recv()?;
+    tx_out: Sender<OutputBatch>,
+    acc_width: usize,
+) -> Result<()> {
+    let mut buffer = DiskBuffer::default();
+    for path in rx_paths {
+        let file = fs::File::open(&path).with_context(|| format!("opening {}", path.display()))?;
+        let mut decoder = zstd::stream::read::Decoder::new(file)?;
+        buffer
+            .read_from(&mut decoder)
+            .with_context(|| format!("reading {}", path.display()))?;
 
-            let file = std::fs::File::open(&path)?;
-            let mut decoder = zstd::stream::read::Decoder::new(file)?;
-            buffer.read_from(&mut decoder)?;
-
-            let result = build_worker_result(buffer);
-            tx_entry.send(result)?;
+        let mut groups: HashMap<&[u8], Vec<u8>> = HashMap::new();
+        for record in buffer.iter(acc_width) {
+            let record = record.with_context(|| format!("parsing {}", path.display()))?;
+            groups
+                .entry(record.seq)
+                .or_default()
+                .extend_from_slice(record.accs);
         }
-        Ok(())
-    })
-}
 
-pub fn build_worker_result(buffer: DiskBuffer) -> WorkerResult {
-    let base = buffer.as_bytes().as_ptr() as usize;
-
-    let mut map: HashMap<&[u8], Vec<(Vec<u8>, u16)>> = HashMap::new();
-    for record in buffer.iter() {
-        let metas = record
-            .metas()
-            .map(|(id, pos)| (trim_id(id).to_vec(), pos));
-        map.entry(record.sequence()).or_default().extend(metas);
+        let mut out = OutputBatch::default();
+        for (seq, mut accs) in groups {
+            // an evicted entry and a later copy of the sequence can share accessions
+            dedup_accs(&mut accs, acc_width);
+            out.push(seq, &accs);
+            if out.byte_len() >= OUTPUT_BATCH_BYTES {
+                tx_out.send(mem::take(&mut out)).context("output closed")?;
+            }
+        }
+        if !out.is_empty() {
+            tx_out.send(out).context("output closed")?;
+        }
+        fs::remove_file(&path).with_context(|| format!("removing {}", path.display()))?;
     }
-
-    let groups = map
-        .into_iter()
-        .map(|(seq, metas)| Group {
-            seq_start: seq.as_ptr() as usize - base,
-            seq_len: seq.len(),
-            metas,
-        })
-        .collect();
-
-    WorkerResult { buffer, groups }
-}
-
-fn trim_id(id: &[u8]) -> &[u8] {
-    let end = id.iter().rposition(|&b| b != 0).map_or(0, |i| i + 1);
-    &id[..end]
+    Ok(())
 }

@@ -1,9 +1,17 @@
-/// thread spawners and associated helpers
-pub mod graph_bin_writers;
-pub mod graph_dispatcher;
-pub mod graph_reader;
-pub mod graph_workers;
+//! Long-lived threads of the traversal pipeline:
+//! reader → dispatchers → workers → writers (see `process_graphs::orchestrator`).
+mod dispatcher;
+mod reader;
+mod spiller;
+mod supervisor;
+mod worker;
+mod writer;
+mod writer_msg;
 
-pub use graph_bin_writers::spawn_writer_managers;
-pub use graph_reader::spawn_protein_graph_reader;
-pub use graph_workers::spawn_workers;
+pub use dispatcher::dispatcher_loop;
+pub use reader::reader_loop;
+pub use spiller::{MIN_SPILL_BUF, Spiller};
+pub use supervisor::Supervisor;
+pub use worker::{FlushRequest, worker_loop};
+pub use writer::Writer;
+pub use writer_msg::{WriterMsg, WriterReport};

@@ -1,5 +1,5 @@
 use crate::deduplicate_output::chunk_buffer::ChunkBuffer;
-use crate::deduplicate_output::io::WriterWrapper;
+use crate::deduplicate_output::{OUTPUT_GZIP_LEVEL, io::WriterWrapper};
 use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender};
 use flate2::{Compression, write::GzEncoder};
@@ -17,7 +17,7 @@ pub fn spawn_compressor(
 ) -> thread::JoinHandle<Result<()>> {
     thread::spawn(move || -> Result<()> {
         let encoder = if zip {
-            WriterWrapper::Compressed(GzEncoder::new(file, Compression::default()))
+            WriterWrapper::Compressed(GzEncoder::new(file, Compression::new(OUTPUT_GZIP_LEVEL)))
         } else {
             WriterWrapper::Uncompressed(file)
         };

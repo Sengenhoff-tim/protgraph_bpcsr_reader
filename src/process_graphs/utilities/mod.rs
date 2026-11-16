@@ -1,8 +1,14 @@
+/// utility types used for graph processing
 pub mod aa_pack;
-/// utility stucts used for graph processing
+mod context;
 pub mod interval;
-pub mod types;
+mod messages;
+mod pass;
+mod path_state;
 
 pub use aa_pack::{encode_residue, pack_codes_into, unpack_into};
+pub use context::TraversalContext;
 pub use interval::{Interval, IntervalVecExt, WEIGHT_FACTOR};
-pub use types::{PathState, TraversalContext, TraversalJob};
+pub use messages::{GraphMsg, TraversalJob};
+pub use pass::Pass;
+pub use path_state::PathState;

@@ -22,7 +22,10 @@ fn node_accessors_roundtrip() {
     // odd edge count and a sequence spanning two words exercise the packing boundaries
     let seq = codes("ACDEFGHIK");
     let pdbs = [
-        Interval { lower: -5, upper: 3 },
+        Interval {
+            lower: -5,
+            upper: 3,
+        },
         Interval {
             lower: 10,
             upper: i64::MAX,
@@ -31,14 +34,34 @@ fn node_accessors_roundtrip() {
     let root_edges = [edge(1, 0, false), edge(2, 7, true), edge(3, 3, false)];
     let mid_edges = [edge(3, 1, true)];
     let nodes = [
-        RawNode { mono_weight: 0, pdbs: &[], edges: &root_edges, seq: &[] },
-        RawNode { mono_weight: -42, pdbs: &pdbs, edges: &mid_edges, seq: &seq },
-        RawNode { mono_weight: i64::MAX, pdbs: &[], edges: &[edge(3, 0, false)], seq: &[] },
-        RawNode { mono_weight: 1, pdbs: &pdbs[..1], edges: &[], seq: &[] },
+        RawNode {
+            mono_weight: 0,
+            pdbs: &[],
+            edges: &root_edges,
+            seq: &[],
+        },
+        RawNode {
+            mono_weight: -42,
+            pdbs: &pdbs,
+            edges: &mid_edges,
+            seq: &seq,
+        },
+        RawNode {
+            mono_weight: i64::MAX,
+            pdbs: &[],
+            edges: &[edge(3, 0, false)],
+            seq: &[],
+        },
+        RawNode {
+            mono_weight: 1,
+            pdbs: &pdbs[..1],
+            edges: &[],
+            seq: &[],
+        },
     ];
 
-    let g = ProteinGraph::build("P12345".into(), &nodes).unwrap();
-    assert_eq!(g.accession(), "P12345");
+    let g = ProteinGraph::build(7, &nodes).unwrap();
+    assert_eq!(g.acc_id(), 7);
 
     let root = g.node(0);
     let edges: Vec<_> = root.edges().collect();
@@ -51,7 +74,10 @@ fn node_accessors_roundtrip() {
     let n2 = g.node(edges[1].target());
     assert_eq!(n1.mono_weight(), -42);
     assert_eq!(n2.mono_weight(), i64::MAX);
-    assert_eq!(n1.pdbs().collect::<Vec<_>>(), pdbs.map(|i| (i.lower, i.upper)));
+    assert_eq!(
+        n1.pdbs().collect::<Vec<_>>(),
+        pdbs.map(|i| (i.lower, i.upper))
+    );
     assert_eq!(n1.seq().collect::<Vec<_>>(), seq);
 
     let to_end: Vec<u32> = [n1, n2]
@@ -69,23 +95,38 @@ fn node_accessors_roundtrip() {
 #[test]
 fn rejects_invalid_graphs() {
     let empty: [RawNode; 0] = [];
-    assert!(ProteinGraph::build("x".into(), &empty).is_err());
+    assert!(ProteinGraph::build(0, &empty).is_err());
 
     let too_many_features = [edge(1, 8, false)];
     let out_of_range = [edge(5, 0, false)];
     for edges in [&too_many_features[..], &out_of_range[..]] {
         let nodes = [
-            RawNode { mono_weight: 0, pdbs: &[], edges, seq: &[] },
-            RawNode { mono_weight: 0, pdbs: &[], edges: &[], seq: &[] },
+            RawNode {
+                mono_weight: 0,
+                pdbs: &[],
+                edges,
+                seq: &[],
+            },
+            RawNode {
+                mono_weight: 0,
+                pdbs: &[],
+                edges: &[],
+                seq: &[],
+            },
         ];
-        assert!(ProteinGraph::build("x".into(), &nodes).is_err());
+        assert!(ProteinGraph::build(0, &nodes).is_err());
     }
 }
 
 #[test]
 fn single_node_graph_is_root_and_terminal() {
-    let nodes = [RawNode { mono_weight: 0, pdbs: &[], edges: &[], seq: &[] }];
-    let g = ProteinGraph::build("x".into(), &nodes).unwrap();
+    let nodes = [RawNode {
+        mono_weight: 0,
+        pdbs: &[],
+        edges: &[],
+        seq: &[],
+    }];
+    let g = ProteinGraph::build(0, &nodes).unwrap();
     assert_eq!(g.terminal(), 0);
 }
 

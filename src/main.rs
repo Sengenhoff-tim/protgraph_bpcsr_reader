@@ -1,73 +1,40 @@
 use anyhow::Result;
-
-mod convert_graphs;
-mod deduplicate_output;
-mod parameters;
-mod process_graphs;
-mod shared;
-
 use mimalloc::MiMalloc;
 use tracing::info;
 
-#[cfg(test)]
-mod tests;
+use bpcsr_to_fasta::{
+    convert_graphs::prepare_graphs,
+    parameters::Config,
+    pipeline::{RunParams, run},
+    shared::{LoggingConfig, init_logging},
+};
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-use crate::{
-    convert_graphs::prepare_graphs,
-    deduplicate_output::dedup_bin_files,
-    parameters::Config,
-    process_graphs::process_graphs,
-    shared::{LoggingConfig, init_logging},
-};
-
 /// Reads BPCSR files produced by ProtGraph and generates:
 /// - a deduplicated `peptides.fasta`
-/// - `metadata.csv`, describing which proteins generated each peptide
-/// - `log.csv`, containing run information
+/// - `metadata.bin`, the accession ids of each peptide
+/// - `accessions.csv`, mapping accession ids to accessions
 fn main() -> Result<()> {
     let _guard = init_logging(LoggingConfig::default())?;
 
     let config = Config::new()?;
-
-    let avail_processors = config.cli.avail_processors;
-    let outdir_path = config.cli.outdir_path.clone();
-    let zip = config.cli.zip;
-
-    let memory = config.cli.avail_memory;
+    let params = RunParams::from_cli(&config.cli);
 
     info!("CONVERTING graphs");
-
     // convert .bpcsr input once into arena layout (no-op if input already is converted)
-    let graph_path = prepare_graphs(&config.cli.graph_input_path, &outdir_path)?;
+    let graph_path = prepare_graphs(&config.cli.graph_input_path, &params.outdir)?;
 
-    info!("PROCESSING graphs");
-
-    // read graphs and produce intermediate files
-    process_graphs(config, &graph_path)?;
-
-    info!("FINISHED processing graphs");
-
-    // read intermediate files and write deduplicated output
-    let tmp_path = outdir_path.join("tmp");
-
-    let has_input_files = tmp_path
-        .read_dir()
-        .map(|mut entries| entries.next().is_some())
-        .unwrap_or(false);
-
-    if has_input_files {
-        info!("DEDUBlICATION start");
-        dedup_bin_files(
-            avail_processors as u64,
-            memory as u64,
-            &outdir_path,
-            tmp_path,
-            zip,
-        )?;
-    }
+    info!("PROCESSING {} intervals", config.intervals.len());
+    let report = run(&params, &config.intervals, &graph_path)?;
+    info!(
+        "DONE: {} intervals ({} spilled), {} peptides with {} accession entries",
+        report.intervals,
+        report.spilled_intervals,
+        report.output.peptides,
+        report.output.accessions
+    );
 
     Ok(())
 }

@@ -1,21 +1,10 @@
 //! Turning completed paths into record contents.
 
-use crate::{
-    process_graphs::utilities::{PathState, pack_codes_into},
-    shared::Meta,
-};
+use crate::process_graphs::utilities::{PathState, pack_codes_into};
 
 use super::ProteinGraph;
 
 impl ProteinGraph {
-    /// Metas attached to a record.
-    pub fn build_metas(&self, _trace: &[PathState]) -> Vec<Meta> {
-        vec![Meta {
-            id: self.accession.clone(),
-            pos: u16::MAX,
-        }]
-    }
-
     /// Packed sequence of the path, excluding root and terminal.
     pub fn build_sequence(&self, trace: &[PathState], sequence_buffer: &mut Vec<u8>) {
         if trace.len() < 2 {
