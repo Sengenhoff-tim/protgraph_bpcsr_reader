@@ -1,6 +1,6 @@
 //! Conversion stage: reads the .bpcsr produced by protgraph once and writes the
 //! graphs in arena layout (`.pgarena`), which later passes read with a bulk copy.
-mod bpcsr_reader;
+pub(crate) mod bpcsr_reader;
 
 use std::{
     fs::{File, create_dir_all},
