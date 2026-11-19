@@ -115,20 +115,20 @@ fn read_output(outdir: &Path, zip: bool) -> Peptides {
 /// Reference: per interval, every matching path maps its sequence to its graph's
 /// accession; sequences are unique within an interval, mappings are unique.
 fn expected(graphs: &[TestGraph], intervals: &[Interval]) -> Peptides {
-    let mut out = Vec::new();
-    for interval in intervals {
-        let mut groups: HashMap<String, Vec<String>> = HashMap::new();
-        for g in graphs {
-            for seq in reference_peptides(g, std::slice::from_ref(interval), MAX_VARS, 2) {
-                groups.entry(seq).or_default().push(g.accessions[0].clone());
-            }
+    let mut groups: HashMap<String, Vec<String>> = HashMap::new();
+    for g in graphs {
+        for seq in reference_peptides(g, intervals, MAX_VARS, 2) {
+            groups.entry(seq).or_default().push(g.accessions[0].clone());
         }
-        out.extend(groups.into_iter().map(|(seq, mut accs)| {
+    }
+    let mut out: Peptides = groups
+        .into_iter()
+        .map(|(seq, mut accs)| {
             accs.sort();
             accs.dedup();
             (seq, accs)
-        }));
-    }
+        })
+        .collect();
     out.sort();
     out
 }
@@ -194,7 +194,7 @@ fn in_memory_dedup_matches_reference() {
         let case = random_case(seed);
         let (got, report) = run_case(&case, false, 2, 64 << 20, 8);
         assert_eq!(got, expected(&case.graphs, &case.intervals), "seed {seed}");
-        assert_eq!(report.spilled_intervals, 0, "large tables must not spill");
+        assert!(!report.spilled, "large tables must not spill");
         assert_eq!(report.output.peptides as usize, got.len());
         total += got.len();
     }
@@ -205,21 +205,20 @@ fn in_memory_dedup_matches_reference() {
 
 #[test]
 fn spilling_dedup_matches_reference() {
-    let (mut spilled, mut intervals) = (0, 0);
+    let mut spilled = 0;
     for seed in 100..115 {
         let case = random_case(seed);
         // no budget: one bucket of 1-2 entries per writer, no heap
         let threads = if seed % 2 == 0 { 1 } else { 3 };
         let (got, report) = run_case(&case, seed % 2 == 0, threads, 0, 1 + seed as usize % 2);
         assert_eq!(got, expected(&case.graphs, &case.intervals), "seed {seed}");
-        spilled += report.spilled_intervals;
-        intervals += report.intervals;
+        spilled += report.spilled as usize;
     }
-    println!("{spilled} of {intervals} intervals spilled");
-    // intervals with at most one peptide per writer cannot evict
+    println!("{spilled} of 15 runs spilled");
+    // runs with at most one peptide per writer cannot evict
     assert!(
         spilled >= 5,
-        "tiny tables should spill ({spilled} of {intervals} intervals spilled)"
+        "tiny tables should spill ({spilled} of 15 runs)"
     );
 }
 

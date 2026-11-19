@@ -6,7 +6,7 @@ use std::{
 use anyhow::{Context, Result, anyhow, ensure};
 use crossbeam_channel::{Receiver, Sender, bounded, unbounded};
 
-use super::{IntervalReport, ProcessParams, sizing::Sizing, stages};
+use super::{PassReport, ProcessParams, sizing::Sizing, stages};
 use crate::{
     process_graphs::{
         graph::MAX_VARIANTS,
@@ -71,26 +71,27 @@ impl ProcessPipeline {
         })
     }
 
-    /// Directory of the shard files of `interval` (exists only if the report says spilled).
-    pub fn interval_dir(&self, interval: usize) -> PathBuf {
-        Spiller::interval_dir(&self.tmp_dir, interval)
+    /// Directory of the shard files of pass `idx` (exists only if the report says spilled).
+    pub fn pass_dir(&self, idx: usize) -> PathBuf {
+        Spiller::pass_dir(&self.tmp_dir, idx)
     }
 
-    /// Traverses all graphs against `interval` and finishes the interval in every writer.
-    /// Intervals must be run with consecutive indices starting at 0.
-    pub fn run_interval(&self, idx: usize, interval: Interval) -> Result<IntervalReport> {
-        self.start_pass(idx, interval)?;
+    /// Traverses all graphs against `intervals` (sorted and merged) and finishes the pass in
+    /// every writer. Passes must be run with consecutive indices starting at 0, and a
+    /// sequence must not match intervals of two different passes.
+    pub fn run_pass(&self, idx: usize, intervals: &[Interval]) -> Result<PassReport> {
+        self.start_pass(idx, intervals)?;
         self.wait_traversed(idx)?;
         self.flush_workers()?;
         self.finish_writers()
     }
 
     /// Hands the reader a new pass; it re-reads all graphs for it.
-    fn start_pass(&self, idx: usize, interval: Interval) -> Result<()> {
+    fn start_pass(&self, idx: usize, intervals: &[Interval]) -> Result<()> {
         let ctx = TraversalContext {
             max_variants: self.max_vars,
             max_missed_cleavages: self.max_cleavages,
-            intervals: Box::new([interval]),
+            intervals: intervals.into(),
         };
         self.tx_pass
             .send(Arc::new(Pass::new(idx, ctx, self.done_tx.clone())))
@@ -100,10 +101,7 @@ impl ProcessPipeline {
     /// Waits until the last graph and job of the pass is dropped.
     fn wait_traversed(&self, idx: usize) -> Result<()> {
         let done = self.supervisor.wait(&self.done_rx)?;
-        ensure!(
-            done == idx,
-            "interval {done} finished while waiting for {idx}"
-        );
+        ensure!(done == idx, "pass {done} finished while waiting for {idx}");
         Ok(())
     }
 
@@ -117,9 +115,9 @@ impl ProcessPipeline {
     }
 
     /// Makes every writer drain its table; collects their reports.
-    fn finish_writers(&self) -> Result<IntervalReport> {
-        let acks = self.broadcast(&self.txs_writer, WriterMsg::EndInterval)?;
-        let mut report = IntervalReport::default();
+    fn finish_writers(&self) -> Result<PassReport> {
+        let acks = self.broadcast(&self.txs_writer, WriterMsg::EndPass)?;
+        let mut report = PassReport::default();
         for ack in &acks {
             report.add(self.supervisor.wait::<WriterReport>(ack)?);
         }

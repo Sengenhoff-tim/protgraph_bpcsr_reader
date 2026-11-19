@@ -1,7 +1,7 @@
 //! Writer threads: each owns the dedup table for its share of the hash space.
 //!
 //! Records are deduplicated in memory; entries evicted from the table go to the
-//! [`Spiller`]. At the end of an interval, entries of buckets that never evicted are
+//! [`Spiller`]. At the end of a pass, entries of buckets that never evicted are
 //! complete and go straight to the output; entries of evicting buckets are spilled as
 //! well, so the final shard dedup can merge them with their evicted copies.
 
@@ -24,7 +24,7 @@ pub struct Writer {
     /// returns emptied batch buffers to the workers
     pub tx_reuse: Sender<MemBuffer>,
     pub tx_out: Sender<OutputBatch>,
-    /// table stats at the end of the previous interval
+    /// table stats at the end of the previous pass
     pub stats_before: TableStats,
 }
 
@@ -33,8 +33,8 @@ impl Writer {
         for msg in rx {
             match msg {
                 WriterMsg::Batch(batch) => self.insert(batch)?,
-                WriterMsg::EndInterval(ack) => {
-                    let report = self.finish_interval()?;
+                WriterMsg::EndPass(ack) => {
+                    let report = self.finish_pass()?;
                     ack.send(report).context("coordinator gone")?;
                 }
             }
@@ -57,7 +57,7 @@ impl Writer {
     }
 
     /// Drains the table: complete entries to the output, the rest to the spill files.
-    fn finish_interval(&mut self) -> Result<WriterReport> {
+    fn finish_pass(&mut self) -> Result<WriterReport> {
         let (spiller, tx_out) = (&mut self.spiller, &self.tx_out);
         let mut out = OutputBatch::default();
         let mut direct = 0u64;
@@ -75,9 +75,9 @@ impl Writer {
         if !out.is_empty() {
             tx_out.send(out).context("output closed")?;
         }
-        let spilled = self.spiller.finish_interval()?;
+        let spilled = self.spiller.finish_pass()?;
 
-        let stats = self.interval_stats();
+        let stats = self.pass_stats();
         info!(
             "writer {}: {} new, {} duplicates, {} evicted, {} direct",
             self.idx, stats.inserted, stats.hits, stats.evicted, direct
@@ -89,8 +89,8 @@ impl Writer {
         })
     }
 
-    /// Table stats since the previous interval.
-    fn interval_stats(&mut self) -> TableStats {
+    /// Table stats since the previous pass.
+    fn pass_stats(&mut self) -> TableStats {
         let total = self.table.stats();
         let before = mem::replace(&mut self.stats_before, total);
         TableStats {

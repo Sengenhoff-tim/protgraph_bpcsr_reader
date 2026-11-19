@@ -22,6 +22,8 @@ use super::Edge;
 pub(super) const HDR_WORDS: usize = 2;
 /// Bytes of the sequence length prefix.
 const SEQ_LEN_BYTES: usize = 4;
+/// Up to this many pdb intervals, the overlap check binary-searches the queries.
+const BINARY_SEARCH_MAX_PDBS: usize = 16;
 
 /// Largest edge count of a node (the root links to every peptide start).
 pub const MAX_NODE_EDGES: usize = u32::MAX as usize;
@@ -118,9 +120,23 @@ impl<'a> Node<'a> {
     }
 
     /// True if any query interval, shifted by `offset`, overlaps a pdb interval of this node.
-    /// Both lists are sorted by lower bound.
+    /// `intervals` must be sorted and disjoint (as produced by `merge_and_sort`), so they
+    /// are ordered by their upper bounds as well.
     #[inline]
     pub fn has_overlapping_interval(self, intervals: &[Interval], offset: i64) -> bool {
+        // few node intervals (the normal case): binary search per node interval, which
+        // stays cheap with thousands of queries
+        if self.n_pdbs <= BINARY_SEARCH_MAX_PDBS {
+            return (0..self.n_pdbs).any(|i| {
+                let pdb = self.pdb(i);
+                // first query not ending before the node interval starts
+                let first = intervals.partition_point(|q| q.upper - offset < pdb.lower);
+                intervals
+                    .get(first)
+                    .is_some_and(|q| q.lower - offset <= pdb.upper)
+            });
+        }
+        // many node intervals: one merge-like sweep over both sorted lists
         let mut start = 0;
         for q in intervals {
             let lower = q.lower - offset;

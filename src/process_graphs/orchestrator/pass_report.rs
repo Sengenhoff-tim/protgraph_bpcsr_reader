@@ -1,16 +1,16 @@
 use crate::{process_graphs::threading::WriterReport, shared::TableStats};
 
-/// Outcome of one interval, summed over all writers.
+/// Outcome of one pass, summed over all writers.
 #[derive(Debug, Default, Clone, Copy)]
-pub struct IntervalReport {
-    /// whether shard files were written for this interval
+pub struct PassReport {
+    /// whether shard files were written for this pass
     pub spilled: bool,
     /// peptides written directly to the output
     pub direct: u64,
     pub stats: TableStats,
 }
 
-impl IntervalReport {
+impl PassReport {
     pub(super) fn add(&mut self, writer: WriterReport) {
         self.spilled |= writer.spilled;
         self.direct += writer.direct;

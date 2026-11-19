@@ -85,14 +85,26 @@ fn traversal_matches_reference_on_random_graphs() {
     let mut total = 0;
 
     for round in 0..200 {
-        let (n_nodes, n_pdbs) = (rng.random_range(2..40), rng.random_range(1..5));
+        let n_nodes = rng.random_range(2..40);
+        // nodes with many pdb intervals take the sweep path of the overlap check
+        let n_pdbs = if round % 4 == 0 {
+            rng.random_range(17..40)
+        } else {
+            rng.random_range(1..5)
+        };
         let tg = random_graph(&mut rng, n_nodes, n_pdbs);
-        let queries: Vec<Interval> = (0..rng.random_range(1..4))
+        // many narrow queries, as in real runs, or a few wide ones
+        let (n_queries, max_width) = if round % 3 == 0 {
+            (rng.random_range(50..300), 10)
+        } else {
+            (rng.random_range(1..4), 150)
+        };
+        let queries: Vec<Interval> = (0..n_queries)
             .map(|_| {
                 let lower = rng.random_range(0..700);
                 Interval {
                     lower,
-                    upper: lower + rng.random_range(0..150),
+                    upper: lower + rng.random_range(0..max_width),
                 }
             })
             .collect();

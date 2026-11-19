@@ -38,15 +38,12 @@ Queue depths and buffer sizes are derived from `--avail_processors` and `--avail
 1. **Conversion**: the `.bpcsr` input is converted once into `<outdir>/graphs.pgarena`
    (one memory block per graph node, global accession table). Passing a `.pgarena` file as
    `-g` skips this step.
-2. **Per query interval**: all graphs are traversed against the interval. Results are
+2. **Traversal**: all graphs are traversed once against all query intervals. Results are
    deduplicated in memory by sequence; when memory runs out, entries are spilled to
    `<outdir>/tmp`. Complete results are written to the output right away.
-3. **Spilled intervals** are deduplicated from their files at the end and appended.
+3. **Spilled entries** are deduplicated from their files at the end and appended.
 
 `<outdir>/tmp` is cleared at the start of a run and removed at the end.
-
-Query intervals are merged, so they never overlap; a peptide's mass follows from its
-sequence, so a peptide never occurs in two intervals.
 
 ### Output
 

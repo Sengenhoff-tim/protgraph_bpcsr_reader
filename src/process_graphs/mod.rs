@@ -4,4 +4,4 @@ mod orchestrator;
 pub(crate) mod threading;
 pub mod utilities;
 
-pub use orchestrator::{IntervalReport, ProcessParams, ProcessPipeline};
+pub use orchestrator::{PassReport, ProcessParams, ProcessPipeline};

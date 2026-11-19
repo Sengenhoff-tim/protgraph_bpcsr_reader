@@ -1,11 +1,8 @@
 //! Whole run after conversion:
 //!
-//! 1. for every query interval: traverse all graphs, dedup in memory; complete results go
-//!    straight to the output, evicted ones to the interval's shard files
-//! 2. dedup the shard files of all intervals that spilled and append them to the output
-//!
-//! Query intervals are disjoint and a peptide's weight follows from its sequence, so a
-//! sequence never occurs in two intervals and per-interval dedup is global dedup.
+//! 1. one pass over all graphs against all query intervals, dedup in memory; complete
+//!    results go straight to the output, evicted ones to shard files
+//! 2. dedup the shard files and append them to the output
 
 mod run;
 mod run_params;

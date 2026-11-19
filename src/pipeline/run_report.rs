@@ -4,6 +4,7 @@ use crate::deduplicate_output::OutputStats;
 #[derive(Debug, Default, Clone, Copy)]
 pub struct RunReport {
     pub intervals: usize,
-    pub spilled_intervals: usize,
+    /// whether entries were spilled to disk and deduplicated from there
+    pub spilled: bool,
     pub output: OutputStats,
 }

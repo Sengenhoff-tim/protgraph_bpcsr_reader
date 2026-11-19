@@ -6,13 +6,12 @@ use tracing::info;
 use super::{RunParams, RunReport};
 use crate::{
     deduplicate_output::{OutputSink, dedup_spilled, write_accessions},
-    process_graphs::{
-        IntervalReport, ProcessPipeline, io::arena_io::ArenaFile, utilities::Interval,
-    },
+    process_graphs::{PassReport, ProcessPipeline, io::arena_io::ArenaFile, utilities::Interval},
     shared::acc_width,
 };
 
-/// Runs all intervals over the converted graphs at `graph_path` and writes the output.
+/// Traverses the converted graphs at `graph_path` against all `intervals` (sorted and
+/// merged) in one pass and writes the deduplicated output.
 pub fn run(params: &RunParams, intervals: &[Interval], graph_path: &Path) -> Result<RunReport> {
     let arena = Arc::new(ArenaFile::open(graph_path)?);
     let w = acc_width(arena.accessions().len());
@@ -29,18 +28,17 @@ pub fn run(params: &RunParams, intervals: &[Interval], graph_path: &Path) -> Res
     let sink = OutputSink::spawn(&params.outdir, params.zip, w)?;
     let pipeline = ProcessPipeline::spawn(&params.process, arena, &tmp, sink.sender(), w)?;
 
-    let mut spilled = Vec::new();
-    for (idx, &interval) in intervals.iter().enumerate() {
-        let report = pipeline.run_interval(idx, interval)?;
-        log_interval(idx, interval, &report);
-        if report.spilled {
-            spilled.push(pipeline.interval_dir(idx));
-        }
-    }
+    let report = pipeline.run_pass(0, intervals)?;
+    log_pass(intervals.len(), &report);
+    let spilled: Vec<_> = report
+        .spilled
+        .then(|| pipeline.pass_dir(0))
+        .into_iter()
+        .collect();
     pipeline.shutdown()?;
 
     if !spilled.is_empty() {
-        info!("DEDUP of {} spilled intervals", spilled.len());
+        info!("DEDUP of spilled entries");
         dedup_spilled(
             &spilled,
             params.process.threads,
@@ -58,14 +56,14 @@ pub fn run(params: &RunParams, intervals: &[Interval], graph_path: &Path) -> Res
     );
     Ok(RunReport {
         intervals: intervals.len(),
-        spilled_intervals: spilled.len(),
+        spilled: report.spilled,
         output,
     })
 }
 
-fn log_interval(idx: usize, interval: Interval, report: &IntervalReport) {
+fn log_pass(n_intervals: usize, report: &PassReport) {
     info!(
-        "INTERVAL {idx} ({interval}): {} paths, {} unique in memory, {} evicted, {} written directly{}",
+        "PASS over {n_intervals} intervals: {} paths, {} unique in memory, {} evicted, {} written directly{}",
         report.stats.inserted + report.stats.hits,
         report.stats.inserted,
         report.stats.evicted,

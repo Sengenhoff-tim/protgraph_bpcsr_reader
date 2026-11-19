@@ -29,9 +29,13 @@ fn main() -> Result<()> {
     info!("PROCESSING {} intervals", config.intervals.len());
     let report = run(&params, &config.intervals, &graph_path)?;
     info!(
-        "DONE: {} intervals ({} spilled), {} peptides with {} accession entries",
+        "DONE: {} intervals ({}), {} peptides with {} accession entries",
         report.intervals,
-        report.spilled_intervals,
+        if report.spilled {
+            "spilled"
+        } else {
+            "in memory"
+        },
         report.output.peptides,
         report.output.accessions
     );
