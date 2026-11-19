@@ -5,9 +5,26 @@
 //! ```
 //! All integers little endian. The id width `w` is fixed per run and not stored.
 
+use std::io::Write;
+
 use anyhow::{Context, Result, ensure};
 
 const HEADER_LEN: usize = 8;
+
+/// Writes one shard record to `out`. `accs` holds whole `w`-byte ids.
+pub fn write_record<W: Write>(out: &mut W, seq: &[u8], accs: &[u8], w: usize) -> Result<()> {
+    ensure!(
+        accs.len().is_multiple_of(w),
+        "accession bytes not a multiple of {w}"
+    );
+    let seq_len = u32::try_from(seq.len()).context("sequence too long")?;
+    let n_acc = u32::try_from(accs.len() / w).context("too many accessions")?;
+    out.write_all(&seq_len.to_le_bytes())?;
+    out.write_all(&n_acc.to_le_bytes())?;
+    out.write_all(seq)?;
+    out.write_all(accs)?;
+    Ok(())
+}
 
 #[derive(Debug, Default)]
 pub struct DiskBuffer {
@@ -52,18 +69,8 @@ impl DiskBuffer {
 
     /// Appends one record. `accs` holds whole `w`-byte ids.
     pub fn push(&mut self, seq: &[u8], accs: &[u8], w: usize) -> Result<()> {
-        ensure!(
-            accs.len().is_multiple_of(w),
-            "accession bytes not a multiple of {w}"
-        );
-        let seq_len = u32::try_from(seq.len()).context("sequence too long")?;
-        let n_acc = u32::try_from(accs.len() / w).context("too many accessions")?;
-        self.data.reserve(HEADER_LEN + seq.len() + accs.len());
-        self.data.extend_from_slice(&seq_len.to_le_bytes());
-        self.data.extend_from_slice(&n_acc.to_le_bytes());
-        self.data.extend_from_slice(seq);
-        self.data.extend_from_slice(accs);
-        Ok(())
+        // on error nothing is written: the checks run before the first byte
+        write_record(&mut self.data, seq, accs, w)
     }
 
     /// Iterates the records; a truncated trailing record ends the iteration with an error.

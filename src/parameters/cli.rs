@@ -93,7 +93,7 @@ pub struct Cli {
     #[arg(
         long = "avail_memory",
         value_name = "U64",
-        help = "Available memory in GB. During traversal 60% is used for the in-memory dedup tables (results that do not fit are spilled to disk), 70% for the final dedup of spilled files."
+        help = "Available memory in GB. During traversal 80% is used for the in-memory dedup tables (results that do not fit are spilled to disk), 70% for the final dedup of spilled files."
     )]
     pub avail_memory: usize,
 

@@ -7,7 +7,7 @@ pub mod output_batch;
 
 pub use acc_id::{acc_width, decode_accs, dedup_accs, encode_acc};
 pub use dedup_table::{DedupTable, Entry, TableConfig, TableStats};
-pub use disk_buffer::{DiskBuffer, DiskRecord};
+pub use disk_buffer::{DiskBuffer, DiskRecord, write_record};
 pub use mem_buffer::{MemBuffer, MemRecord};
 pub use output_batch::OutputBatch;
 

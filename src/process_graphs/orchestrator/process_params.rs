@@ -8,10 +8,8 @@ pub struct ProcessParams {
     pub bucket_size: usize,
     /// memory for all dedup tables together
     pub table_budget: usize,
-    /// memory for worker → writer batches
+    /// upper bound for the worker → writer batch pool (buffers are at most 256 KiB each)
     pub batch_budget: usize,
-    /// memory for spill buffers of all writers
-    pub spill_budget: usize,
     /// open spill files over all writers; defaults to 80% of the process limit
     pub max_handles: Option<u32>,
     /// frontier jobs per graph

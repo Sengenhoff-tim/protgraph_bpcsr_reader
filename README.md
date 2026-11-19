@@ -27,7 +27,7 @@ This tool processes protein graphs against mass range queries to identify matchi
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `--avail_processors` | 1 | CPU cores for parallel processing |
-| `--avail_memory` | Required | Available RAM in GB; 60% is used for the in-memory dedup tables |
+| `--avail_memory` | Required | Available RAM in GB; 80% is used for the in-memory dedup tables |
 | `--bucket_size` | 8 | Entries per bucket of the in-memory dedup tables |
 | `--max_file_handles` | 80% of RLIMIT_NOFILE, clamped 64–8192 (Windows: 2048) | Spill files open at once during traversal, over all writers |
 

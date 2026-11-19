@@ -42,14 +42,7 @@ pub(super) fn spawn_writers(
             let writer = Writer {
                 idx,
                 table: DedupTable::new(sizing.table),
-                spiller: Spiller::new(
-                    tmp_dir,
-                    idx,
-                    sizing.n_writers,
-                    sizing.n_shards,
-                    sizing.spill_buf,
-                    sizing.table.acc_width,
-                ),
+                spiller: Spiller::new(tmp_dir, idx, sizing.n_shards, sizing.table.acc_width),
                 tx_reuse: tx_reuse.clone(),
                 tx_out: tx_out.clone(),
                 stats_before: TableStats::default(),

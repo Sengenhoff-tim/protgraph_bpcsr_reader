@@ -1,7 +1,8 @@
 //! In-memory dedup of `sequence → accession ids` with bounded memory.
 //!
-//! The table is a flat array of `2^bits` buckets with `bucket_size` slots each,
-//! addressed by the top bits of the sequence hash. A bucket is a small most-recently-used
+//! The table is a flat array of buckets with `bucket_size` slots each, addressed by the
+//! top bits of the sequence hash; each slot keeps a 16-bit tag of the hash to skip most
+//! sequence comparisons. A bucket is a small most-recently-used
 //! list: a hit appends the accession and moves the entry to the front, a new sequence is
 //! inserted at the front. When a bucket is full its last entry is evicted (with all its
 //! accessions). Entries whose sequence or accession list outgrew the inline storage

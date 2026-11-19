@@ -3,9 +3,12 @@
 use tracing::info;
 
 use super::ProcessParams;
-use crate::{process_graphs::threading::MIN_SPILL_BUF, shared::TableConfig};
+use crate::shared::TableConfig;
 
-const MIN_BATCH_BYTES: usize = 64 * 1024;
+/// Batch buffer size. Larger batches no longer reduce channel traffic noticeably.
+const MAX_BATCH_BYTES: usize = 256 * 1024;
+/// Floor for very high thread counts under a small memory cap.
+const MIN_BATCH_BYTES: usize = 16 * 1024;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct Sizing {
@@ -20,7 +23,6 @@ pub(super) struct Sizing {
     pub table: TableConfig,
     /// spill files per writer and interval
     pub n_shards: usize,
-    pub spill_buf: usize,
 }
 
 impl Sizing {
@@ -35,28 +37,29 @@ impl Sizing {
             n_writers,
             queue_depth: threads * 2,
             pool_size,
-            batch_bytes: (params.batch_budget / pool_size).max(MIN_BATCH_BYTES),
+            // the pool grows with threads², so the budget only caps it
+            batch_bytes: (params.batch_budget / pool_size).clamp(MIN_BATCH_BYTES, MAX_BATCH_BYTES),
             table: TableConfig::from_budget(
                 params.table_budget / n_writers,
                 params.bucket_size,
                 acc_width,
             ),
             n_shards,
-            spill_buf: (params.spill_budget / (n_writers * n_shards)).max(MIN_SPILL_BUF),
         }
     }
 
     pub fn log(&self) {
         info!(
             "dedup tables: {} writers x {} buckets x {} entries ({} MiB fixed, {} MiB heap each); \
-             spill: {} shards x {} KiB per writer",
+             batches: {} x {} KiB; spill: {} shards per writer",
             self.n_writers,
-            self.table.n_buckets(),
+            self.table.n_buckets,
             self.table.bucket_size,
             self.table.fixed_bytes() >> 20,
             self.table.heap_budget >> 20,
-            self.n_shards,
-            self.spill_buf >> 10
+            self.pool_size,
+            self.batch_bytes >> 10,
+            self.n_shards
         );
     }
 }

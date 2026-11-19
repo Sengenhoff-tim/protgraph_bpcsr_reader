@@ -46,8 +46,8 @@ impl Writer {
         let spiller = &mut self.spiller;
         for rec in batch.iter() {
             self.table
-                .insert(rec.hash, rec.seq, rec.acc, &mut |hash, entry| {
-                    spiller.write(hash, &entry)
+                .insert(rec.hash, rec.seq, rec.acc, &mut |bucket, entry| {
+                    spiller.write(bucket, &entry)
                 })?;
         }
         batch.clear();
@@ -61,9 +61,9 @@ impl Writer {
         let (spiller, tx_out) = (&mut self.spiller, &self.tx_out);
         let mut out = OutputBatch::default();
         let mut direct = 0u64;
-        self.table.drain(|hash, entry, evicted| {
+        self.table.drain(|bucket, entry, evicted| {
             if evicted {
-                return spiller.write(hash, &entry);
+                return spiller.write(bucket, &entry);
             }
             out.push(&entry.seq, &entry.accs);
             direct += 1;

@@ -10,7 +10,7 @@ mod writer_msg;
 
 pub use dispatcher::dispatcher_loop;
 pub use reader::reader_loop;
-pub use spiller::{MIN_SPILL_BUF, Spiller};
+pub use spiller::Spiller;
 pub use supervisor::Supervisor;
 pub use worker::{FlushRequest, worker_loop};
 pub use writer::Writer;

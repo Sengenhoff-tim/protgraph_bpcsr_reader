@@ -44,7 +44,6 @@ fn params(
             bucket_size,
             table_budget,
             batch_budget: 0,
-            spill_budget: 0,
             max_handles: Some(8),
             jobs_per_graph: 3,
         },

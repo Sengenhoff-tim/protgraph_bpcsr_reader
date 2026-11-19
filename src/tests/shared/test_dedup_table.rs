@@ -9,9 +9,9 @@ use crate::shared::{DedupTable, Entry, TableConfig, decode_accs};
 
 const W: usize = 2;
 
-fn cfg(bucket_bits: u32, bucket_size: usize, heap_budget: usize) -> TableConfig {
+fn cfg(n_buckets: usize, bucket_size: usize, heap_budget: usize) -> TableConfig {
     TableConfig {
-        bucket_bits,
+        n_buckets,
         bucket_size,
         heap_budget,
         acc_width: W,
@@ -139,7 +139,7 @@ fn check(records: &[(u64, Vec<u8>, u32)], out: &Outcome) {
 fn dedup_is_complete_without_pressure() {
     let mut rng = StdRng::seed_from_u64(7);
     let records = random_records(&mut rng, 3000, 200, false);
-    let mut table = DedupTable::new(cfg(10, 8, usize::MAX));
+    let mut table = DedupTable::new(cfg(1024, 8, usize::MAX));
     let out = feed(&mut table, &records);
     check(&records, &out);
     assert!(out.evicted.is_empty() && out.drained_spill.is_empty());
@@ -155,8 +155,9 @@ fn dedup_stays_correct_under_eviction() {
         let colliding = round % 3 == 0;
         let distinct = rng.random_range(5..300);
         let records = random_records(&mut rng, 2000, distinct, colliding);
+        // any bucket count, not only powers of two
         let config = cfg(
-            rng.random_range(0..4),
+            rng.random_range(1..=12),
             rng.random_range(1..6),
             rng.random_range(0..400),
         );
@@ -173,7 +174,7 @@ fn dedup_stays_correct_under_eviction() {
 
 #[test]
 fn repeated_mappings_are_stored_once() {
-    let mut table = DedupTable::new(cfg(0, 4, usize::MAX));
+    let mut table = DedupTable::new(cfg(1, 4, usize::MAX));
     let mut none = |_, _| -> anyhow::Result<()> { panic!("nothing should be evicted") };
     for acc in [5, 5, 7, 5, 7, 9, 9] {
         table.insert(1, b"PEP", acc, &mut none).unwrap();
@@ -190,7 +191,7 @@ fn repeated_mappings_are_stored_once() {
 
 #[test]
 fn bucket_evicts_least_recently_used() {
-    let mut table = DedupTable::new(cfg(0, 2, usize::MAX));
+    let mut table = DedupTable::new(cfg(1, 2, usize::MAX));
     let mut evicted = Vec::new();
     let mut put = |t: &mut DedupTable, seq: &[u8], acc| {
         t.insert(1, seq, acc, &mut |_, e| {
@@ -209,7 +210,7 @@ fn bucket_evicts_least_recently_used() {
 
 #[test]
 fn heap_budget_evicts_spilled_entries() {
-    let mut table = DedupTable::new(cfg(4, 4, 0));
+    let mut table = DedupTable::new(cfg(16, 4, 0));
     let mut evicted = Vec::new();
     let long = vec![3u8; 100]; // does not fit inline
     table
@@ -231,16 +232,47 @@ fn heap_budget_evicts_spilled_entries() {
 
 #[test]
 fn config_from_budget() {
-    let c = TableConfig::from_budget(100 << 20, 8, 3);
-    assert!(c.n_buckets().is_power_of_two());
-    assert!(c.fixed_bytes() <= (100 << 20) / 100 * 80);
-    assert!(
-        c.fixed_bytes() * 2 > (100 << 20) / 100 * 80,
-        "should use at least half of its share"
-    );
-    assert_eq!(c.heap_budget, (100 << 20) - (100 << 20) / 100 * 80);
-    assert_eq!(TableConfig::SLOT_BYTES, 64, "slot layout changed");
+    let budget = 100 << 20;
+    let share = budget / 100 * 80;
+    let c = TableConfig::from_budget(budget, 8, 3);
+    // the fixed share is used up to less than one bucket
+    assert!(c.fixed_bytes() <= share);
+    assert!(share - c.fixed_bytes() < 8 * TableConfig::SLOT_BYTES);
+    assert_eq!(c.heap_budget, budget - share);
+    assert_eq!(TableConfig::SLOT_BYTES, 58, "slot layout changed");
 
     let tiny = TableConfig::from_budget(10, 8, 1);
-    assert_eq!(tiny.n_buckets(), 1);
+    assert_eq!(tiny.n_buckets, 1);
+}
+
+#[test]
+fn all_copies_of_a_sequence_report_the_same_bucket() {
+    // the spiller picks the shard file by bucket, so copies must never disagree
+    let mut rng = StdRng::seed_from_u64(9);
+    let records = random_records(&mut rng, 3000, 150, false);
+    let mut table = DedupTable::new(cfg(7, 2, 64));
+    let mut buckets: HashMap<Vec<u8>, usize> = HashMap::new();
+    let mut seen = |b: usize, e: &Entry| {
+        let first = *buckets.entry(e.seq.to_vec()).or_insert(b);
+        assert_eq!(
+            first, b,
+            "copies of a sequence reported in different buckets"
+        );
+        assert!(b < 7);
+    };
+    for (hash, seq, acc) in &records {
+        table
+            .insert(*hash, seq, *acc, &mut |b, e| {
+                seen(b, &e);
+                Ok(())
+            })
+            .unwrap();
+    }
+    table
+        .drain(|b, e, _| {
+            seen(b, &e);
+            Ok(())
+        })
+        .unwrap();
+    assert!(table.stats().evicted > 0);
 }
